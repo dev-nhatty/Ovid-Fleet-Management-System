@@ -1,0 +1,59 @@
+.vehicles-page { width:100%; max-width:1500px; margin:0 auto; padding:22px 0 30px; color:var(--ink); }
+.vehicles-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:30px; }
+.vehicles-eyebrow { color:#5e5b67; font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.09em; margin-bottom:7px; }
+.vehicles-eyebrow span { color:#a19daa; padding:0 4px; }
+.vehicles-heading h1 { margin:0; font-size:28px; line-height:1.2; font-weight:700; letter-spacing:-.03em; }
+.vehicles-heading p { margin:9px 0 0; color:#56535f; font-size:14px; }
+.vehicles-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; margin-bottom:30px; }
+.vehicles-summary-card { min-height:91px; background:#fff; border:1px solid var(--line); border-radius:9px; padding:15px 16px; box-shadow:0 1px 2px rgba(24,17,42,.025); }
+.vehicles-summary-label { color:#55515d; font-size:11px; font-weight:700; letter-spacing:.045em; margin-bottom:7px; }
+.vehicles-summary-number { color:#1c1b22; font-size:28px; line-height:1.25; font-weight:700; letter-spacing:-.03em; }
+.vehicles-summary-number span { color:#625e69; font:12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:0; margin-left:9px; }
+.vehicles-summary-number--orange { color:#bd4d00; }
+.vehicles-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:30px; }
+.vehicles-tabs { display:inline-flex; align-items:center; gap:3px; padding:4px; background:#efedf6; border-radius:8px; }
+.vehicles-tabs button { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:5px; padding:8px 13px; background:transparent; color:#57535f; font-size:12px; font-weight:500; white-space:nowrap; }
+.vehicles-tabs button.is-active { background:#fff; color:#24212b; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+.vehicles-tabs button span { color:inherit; font:11px ui-monospace,SFMono-Regular,Menlo,monospace; opacity:.85; }
+.vehicles-search { width:250px; min-width:210px; height:34px; display:flex; align-items:center; gap:9px; padding:0 10px; color:#595663; border:1px solid var(--line); background:#fff; border-radius:6px; box-shadow:0 1px 2px rgba(24,17,42,.025); }
+.vehicles-search input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:var(--ink); font-size:12px; }
+.vehicles-search input::placeholder { color:#625e69; opacity:1; }
+.vehicles-search kbd { flex:none; color:#7a7583; background:#f0eef6; border-radius:3px; padding:3px 5px; font:10px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vehicles-table-card { overflow-x:auto; border:1px solid var(--line); border-radius:9px; background:#fff; box-shadow:0 1px 2px rgba(24,17,42,.025); }
+.vehicles-table { width:100%; min-width:760px; border-collapse:collapse; }
+.vehicles-table thead { background:#fbfaff; }
+.vehicles-table th { height:45px; padding:0 23px; color:#56525f; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.045em; white-space:nowrap; }
+.vehicles-table td { height:70px; padding:13px 23px; border-top:1px solid var(--line); color:#282630; font-size:13px; white-space:nowrap; }
+.vehicles-table tbody tr:hover { background:#fcfbff; }
+.vehicles-plate { font:13px ui-monospace,SFMono-Regular,Menlo,monospace !important; letter-spacing:.015em; }
+.vehicles-fuel { color:#55515d !important; }
+.vehicle-status { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border:1px solid transparent; border-radius:999px; font-size:10.5px; font-weight:600; line-height:1; white-space:nowrap; }
+.vehicle-status i { display:inline-block; width:6px; height:6px; border-radius:50%; }
+.vehicle-status--available { color:#07885a; background:#edfff7; border-color:#8deac4; }
+.vehicle-status--available i { background:#10b981; }
+.vehicle-status--in-use { color:#b85b00; background:#fff9eb; border-color:#ffd77a; }
+.vehicle-status--in-use i { background:#f59e0b; }
+.vehicle-status--unavailable { color:#a02b2b; background:#fff0f0; border-color:#f3c4c4; }
+.vehicle-status--unavailable i { background:#dc2626; }
+.vehicles-destination { color:#0757d8; font-size:13px; }
+.vehicles-destination span { margin-left:2px; font-size:12px; }
+.vehicles-no-destination { color:#d2cfda; }
+.vehicles-footer { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:29px 4px 0; color:#5e5a67; font:11px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vehicles-refresh-label { display:inline-flex; align-items:center; gap:6px; text-align:right; }
+.vehicles-error { display:flex; align-items:center; gap:10px; margin:-14px 0 15px; padding:12px 14px; border:1px solid #f0c8c8; border-radius:7px; background:#fff2f2; color:#a51f27; font-size:13px; }
+.vehicles-error span { flex:1; }
+.vehicles-error button { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:5px; padding:6px 9px; background:#fff; color:#8f1820; font-weight:600; }
+.vehicles-state { min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; color:#777280; font-size:13px; }
+.vehicles-state strong { color:var(--ink); font-size:14px; }
+.vehicles-state span { font-size:12px; }
+.vehicles-spin { animation:vehicles-spin .9s linear infinite; }
+.vehicles-refresh-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+@keyframes vehicles-spin { to { transform:rotate(360deg); } }
+@media (max-width:900px) { .vehicles-page { padding-top:12px; } .vehicles-summary { gap:10px; } .vehicles-toolbar { align-items:stretch; flex-direction:column; margin-bottom:18px; } .vehicles-search { width:100%; } .vehicles-table th,.vehicles-table td { padding-left:15px; padding-right:15px; } }
+@media (max-width:560px) { .vehicles-summary { grid-template-columns:1fr; } .vehicles-tabs { width:100%; } .vehicles-tabs button { flex:1; justify-content:center; padding-inline:8px; } .vehicles-footer { align-items:flex-start; flex-direction:column; padding-top:18px; } .vehicles-refresh-label { text-align:left; } }
+
+/* Vehicle rows open the vehicle detail page. */
+.vehicles-table-row { cursor:pointer; }
+.vehicles-table-row:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; }
+.vehicles-plate-link { color:inherit; text-decoration:none; }
+.vehicles-table-row:hover .vehicles-plate-link { color:#0757d8; text-decoration:underline; }

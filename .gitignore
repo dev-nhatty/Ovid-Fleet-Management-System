@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# Repo-wide ignore rules (this file lives at the repo root, next to
+# backend/, frontend/ and database/). It covers both apps; the existing
+# frontend/.gitignore keeps working alongside it.
+# ---------------------------------------------------------------------------
+
+# ----- Secrets & credentials: NEVER commit these -----
+# .env holds the database password and the session-signing secret.
+.env
+.env.*
+*.env
+# ...but keep the template that documents which variables exist
+# (it must contain placeholders only, never real values).
+!.env.example
+
+# Keys, certificates and cloud credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+credentials.json
+service-account*.json
+secrets.*
+
+# ----- Database dumps & backups (they contain real data, including password hashes) -----
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+# schema.sql, migrations/ and seed-dev.sql are NOT ignored on purpose:
+# they are source code and contain no real data.
+
+# ----- Dependencies -----
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+
+# ----- Build output -----
+dist/
+dist-ssr/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# ----- Logs -----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ----- Local / temporary files -----
+*.local
+*.tmp
+*.temp
+# Stray duplicate files created by copy/paste or downloads, e.g. "ProtectedRoute (2).jsx"
+* (*).*
+*.orig
+*.rej
+
+# ----- Editors & OS -----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.sw?
+.DS_Store
+Thumbs.db
+desktop.ini

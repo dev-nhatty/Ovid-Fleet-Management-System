@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #faf8ff;
+  --surface: #ffffff;
+  --field: #f3f2fb;
+  --ink: #16151d;
+  --muted: #6b6a78;
+  --line: #e9e7f2;
+  --black: #000;
+  --blue: #1553d6;
+  --blue-bg: #e3ecff;
+  --red: #c0161c;
+  --red-bg: #fde4e4;
+  --green: #12a05c;
+  --green-bg: #e3f7ec;
+  --gray-bg: #eeedf3;
+  --radius: 10px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: var(--font); font-size: 14px; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+button { font: inherit; color: inherit; cursor: pointer; }
+input { font: inherit; color: inherit; }
+a { cursor: pointer; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.strong { font-weight: 600; }
+.blue { color: var(--blue); }
+.red { color: var(--red); }
+.ta-right { text-align: right; }
