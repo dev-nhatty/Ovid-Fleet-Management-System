@@ -1,0 +1,1 @@
+const express=require('express');const {requireRole}=require('../middleware/role.middleware');const {ROLES}=require('../config/roles');const {listTrips,getTrip}=require('../controllers/trips.controller');const router=express.Router();router.use(requireRole(ROLES.MANAGER));router.get('/',listTrips);router.get('/:tripId',getTrip);module.exports=router;

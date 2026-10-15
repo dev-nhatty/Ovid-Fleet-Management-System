@@ -11,6 +11,8 @@ import VehiclesPage from './pages/manager/VehiclesPage.jsx';
 import VehicleDetailsPage from './pages/manager/VehicleDetailsPage.jsx';
 import DriversPage from './pages/manager/DriversPage.jsx';
 import DriverDetailsPage from './pages/manager/DriverDetailsPage.jsx';
+import TripsPage from './pages/manager/TripsPage.jsx';
+import TripDetailPage from './pages/manager/TripDetailPage.jsx';
 import UsersPage from './pages/admin/UsersPage.jsx';
 import NewUserPage from './pages/admin/NewUserPage.jsx';
 import { ROLES } from './config/roles.js';
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/manager/vehicles/:vehicleId" element={<VehicleDetailsPage />} />
           <Route path="/manager/drivers" element={<DriversPage />} />
           <Route path="/manager/drivers/:driverId" element={<DriverDetailsPage />} />
+          <Route path="/manager/trips" element={<TripsPage />} />
+          <Route path="/manager/trips/:tripId" element={<TripDetailPage />} />
         </Route>
       </Route>
 
