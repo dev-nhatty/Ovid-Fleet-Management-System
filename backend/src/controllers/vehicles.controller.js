@@ -11,6 +11,9 @@ async function listVehicles(req, res, next) {
       `SELECT
           v.id,
           v.plate_number,
+          v.brand_name,
+          v.model_name,
+          v.model_year,
           v.status AS vehicle_status,
           vt.name AS vehicle_type,
           ft.name AS fuel_type,
@@ -71,6 +74,9 @@ async function getVehicleDetails(req, res, next) {
       `SELECT
           v.id,
           v.plate_number,
+          v.brand_name,
+          v.model_name,
+          v.model_year,
           v.status AS vehicle_status,
           vt.name AS vehicle_type,
           ft.name AS fuel_type,
@@ -128,9 +134,29 @@ async function getVehicleDetails(req, res, next) {
       [vehicleId]
     );
 
+    const recentFuelLogsResult = await pool.query(
+      `SELECT
+          f.id AS fuel_transaction_id,
+          f.fueled_date,
+          f.liters,
+          f.transaction_ref,
+          f.status AS fuel_status,
+          f.recorded_at,
+          ft.name AS fuel_type,
+          u.name AS recorded_by
+        FROM fuel_transactions f
+        LEFT JOIN fuel_types ft ON ft.id = f.fuel_type_id
+        LEFT JOIN users u ON u.id = f.recorded_by_user_id
+       WHERE f.vehicle_id = $1
+       ORDER BY f.fueled_date DESC, f.recorded_at DESC, f.id DESC
+       LIMIT 10`,
+      [vehicleId]
+    );
+
     res.json({
       vehicle: vehicleResult.rows[0],
       recentTrips: recentTripsResult.rows,
+      recentFuelLogs: recentFuelLogsResult.rows,
       refreshedAt: new Date().toISOString(),
     });
   } catch (err) {

@@ -10,6 +10,7 @@ import './new-request.css';
 const blankForm = {
   employee: null,
   employeeQuery: '',
+  origin: '',
   tripType: 'With Checkpoints',
   destination: '',
   checkpoints: [],
@@ -102,6 +103,9 @@ export default function NewRequestPage() {
     setError('');
     setSuccess(null);
     setFields({});
+    if (!form.origin.trim()) { setFields({ origin: 'Origin is required.' }); setError('Please enter the trip origin.'); return; }
+    if (form.origin.trim().length > 255) { setFields({ origin: 'Origin must be 255 characters or fewer.' }); setError('Please correct the highlighted fields.'); return; }
+    if (form.tripType !== 'With Checkpoints' && !form.destination.trim()) { setFields({ destination: 'Destination is required.' }); setError('Please enter a destination.'); return; }
     if (!form.employee) {
       setFields({ employeeId: 'Choose an employee from the directory.' });
       setError('Please choose an employee from the directory.');
@@ -111,8 +115,9 @@ export default function NewRequestPage() {
     try {
       const result = await createTripRequest({
         employeeId: form.employee.id,
+        origin: form.origin.trim(),
         tripType: form.tripType,
-        destination: form.destination,
+        destination: form.tripType === 'With Checkpoints' ? '' : form.destination.trim(),
         checkpoints: form.checkpoints.map(({ location }) => ({ location: location.trim() })),
       });
       navigate(`/manager/assign-trip/${result.id}`);
@@ -207,22 +212,28 @@ export default function NewRequestPage() {
 
 
           <div className="request-field request-field--wide">
+            <label htmlFor="origin">TRIP ORIGIN <b>*</b></label>
+            <div className="request-input-wrap"><MapPin size={17} /><input id="origin" maxLength={255} value={form.origin}
+              aria-invalid={Boolean(fields.origin)} placeholder="Enter pickup / starting location" onChange={(e) => update('origin', e.target.value)} /></div>
+            {fields.origin && <small className="request-field-error">{fields.origin}</small>}
+          </div>
+
+          {form.tripType !== 'With Checkpoints' && <div className="request-field request-field--wide">
             <label htmlFor="destination">PRIMARY DESTINATION <b>*</b></label>
             <div className="request-input-wrap"><MapPin size={17} /><input id="destination" maxLength={255} value={form.destination}
               aria-invalid={Boolean(fields.destination)} placeholder="Enter destination / facility" onChange={(e) => update('destination', e.target.value)} /></div>
             {fields.destination && <small className="request-field-error">{fields.destination}</small>}
-          </div>
-
+          </div>}
           {form.tripType === 'With Checkpoints' && (
             <div className="request-field request-field--wide">
-              <div className="request-stops-heading"><label>INTERMEDIATE STOPS <span className="request-count">{form.checkpoints.length}</span></label>
-                <button type="button" className="request-text-button" onClick={addCheckpoint} disabled={form.checkpoints.length >= 20}><PlusCircle size={15} /> Add Checkpoint</button></div>
+              <div className="request-stops-heading"><label>DESTINATIONS / CHECKPOINTS <span className="request-count">{form.checkpoints.length}</span></label>
+                <button type="button" className="request-text-button" onClick={addCheckpoint} disabled={form.checkpoints.length >= 20}><PlusCircle size={15} /> Add Destination</button></div>
               {form.checkpoints.map((stop, index) => (
                 <div className="request-stop-row" key={stop.key}>
                   <GripVertical size={15} className="request-grip" />
                   <span className="request-stop-number">{index + 1}</span>
-                  <input aria-label={`Checkpoint ${index + 1} location`} maxLength={255} value={stop.location}
-                    placeholder={`Checkpoint ${index + 1} location`}
+                  <input aria-label={`Destination ${index + 1} location`} maxLength={255} value={stop.location}
+                    placeholder={`Destination ${index + 1} location`}
                     onChange={(e) => updateCheckpoint(stop.key, { location: e.target.value })} />
                   <button type="button" className="request-remove-stop" onClick={() => removeCheckpoint(stop.key)} aria-label={`Remove checkpoint ${index + 1}`}><Trash2 size={15} /></button>
                 </div>
@@ -237,19 +248,18 @@ export default function NewRequestPage() {
 
         <aside className="request-side-column">
           <section className="request-card request-route-card">
-            <div className="request-section-title"><h2><Route size={17} /> Route & Checkpoints Preview</h2><span className="request-waypoint-count">{form.checkpoints.length + 1} Waypoints</span></div>
+            <div className="request-section-title"><h2><Route size={17} /> Route & Checkpoints Preview</h2><span className="request-waypoint-count">{form.tripType === 'With Checkpoints' ? form.checkpoints.length + 1 : 2} Waypoints</span></div>
             <div className="request-timeline">
               <div className="request-timeline-item request-timeline-origin">
-                <span className="request-timeline-dot"><Circle size={14} /></span><div><small>ORIGIN</small><strong>Origin not recorded</strong><p>Origin tracking is not part of the current database schema</p></div><time>08:30</time>
+                <span className="request-timeline-dot"><Circle size={14} /></span><div><small>ORIGIN</small><strong>{form.origin || 'Enter origin above'}</strong><p>Trip starting location</p></div><time>08:30</time>
               </div>
-              {form.checkpoints.map((stop, i) => (
-                <div className="request-timeline-item" key={stop.key}>
-                  <span className="request-timeline-dot"><MapPin size={14} /></span><div><small>CHECKPOINT {i + 1}</small><strong>{stop.location || `Checkpoint ${i + 1}`}</strong><p>Intermediate stop</p></div><time>Stop {i + 1}</time>
+              {form.tripType === 'With Checkpoints' ? form.checkpoints.map((stop, i) => (
+                <div className="request-timeline-item request-timeline-destination" key={stop.key}>
+                  <span className="request-timeline-dot"><MapPin size={14} /></span><div><small>DESTINATION {i + 1}</small><strong>{stop.location || `Destination ${i + 1}`}</strong><p>{i === form.checkpoints.length - 1 ? 'Last destination currently added' : 'Route destination'}</p></div><time>Stop {i + 1}</time>
                 </div>
-              ))}
-              <div className="request-timeline-item request-timeline-destination">
+              )) : <div className="request-timeline-item request-timeline-destination">
                 <span className="request-timeline-dot"><MapPin size={14} /></span><div><small>FINAL DESTINATION</small><strong>{form.destination || 'Destination'}</strong><p>{form.tripType === 'Round Trip' ? 'Round trip requested' : form.tripType}</p></div><time>Destination</time>
-              </div>
+              </div>}
             </div>
             <p className="request-preview-note"><Clock3 size={14} /> Preview is indicative only; actual travel time is set during dispatch.</p>
           </section>

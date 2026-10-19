@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Clock3, RefreshCw, Truck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Clock3, RefreshCw, Truck, Fuel } from 'lucide-react';
 import { getVehicleDetails } from '../../api/vehicles.api.js';
 import './vehicle-details.css';
 
@@ -30,6 +30,7 @@ export default function VehicleDetailsPage() {
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
   const [recentTrips, setRecentTrips] = useState([]);
+  const [recentFuelLogs, setRecentFuelLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +42,7 @@ export default function VehicleDetailsPage() {
       const result = await getVehicleDetails(vehicleId);
       setVehicle(result.vehicle || null);
       setRecentTrips(Array.isArray(result.recentTrips) ? result.recentTrips : []);
+      setRecentFuelLogs(Array.isArray(result.recentFuelLogs) ? result.recentFuelLogs : []);
       setError('');
     } catch (err) {
       setError(err.message || 'Could not load vehicle details.');
@@ -92,12 +94,12 @@ export default function VehicleDetailsPage() {
       <article className="vehicle-detail-hero">
         <div className="vehicle-detail-identity">
           <div className="vehicle-detail-title-line">
-            <h1>{vehicle.plate_number}</h1>
+            <h1>{[vehicle.brand_name, vehicle.model_name, vehicle.model_year].filter(Boolean).join(' ') || vehicle.vehicle_type || vehicle.plate_number}</h1>
             <span className={`vehicle-detail-operational ${vehicle.operational_status === 'Available' ? 'is-available' : vehicle.operational_status === 'In Use' ? 'is-in-use' : 'is-unavailable'}`}>
               <i /> {vehicle.operational_status}
             </span>
           </div>
-          <p>{vehicle.vehicle_type || 'Vehicle type not set'} <span>•</span> {vehicle.fuel_type || 'Fuel type not set'}</p>
+          <p>{vehicle.plate_number} <span>•</span> {vehicle.vehicle_type || 'Vehicle type not set'} <span>•</span> {vehicle.fuel_type || 'Fuel type not set'}</p>
         </div>
         {activeAssignment && (
           <div className="vehicle-detail-active">
@@ -132,6 +134,43 @@ export default function VehicleDetailsPage() {
           </div>
         ) : (
           <div className="vehicle-detail-empty"><Truck size={22} /><strong>No trip history yet</strong><span>Trips assigned to this vehicle will appear here.</span></div>
+        )}
+      </section>
+
+      <section className="vehicle-detail-fuel">
+        <div className="vehicle-detail-section-heading">
+          <h2>Fuel Log</h2>
+          <span>{recentFuelLogs.length} {recentFuelLogs.length === 1 ? 'record' : 'records'}</span>
+        </div>
+        {recentFuelLogs.length ? (
+          <div className="vehicle-detail-fuel-table-wrap">
+            <table className="vehicle-detail-fuel-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Fuel type</th>
+                  <th>Liters</th>
+                  <th>Reference</th>
+                  <th>Status</th>
+                  <th>Recorded by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentFuelLogs.map((log) => (
+                  <tr key={log.fuel_transaction_id}>
+                    <td>{formatDate(log.fueled_date)}</td>
+                    <td>{log.fuel_type || '—'}</td>
+                    <td>{Number(log.liters).toLocaleString([], { maximumFractionDigits: 2 })} L</td>
+                    <td>{log.transaction_ref || '—'}</td>
+                    <td><span className={`vehicle-detail-fuel-status vehicle-detail-fuel-status--${String(log.fuel_status || 'recorded').toLowerCase()}`}>{log.fuel_status || 'Unknown'}</span></td>
+                    <td>{log.recorded_by || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="vehicle-detail-empty vehicle-detail-fuel-empty"><Fuel size={22} /><strong>No fuel records yet</strong><span>Fuel transactions recorded for this vehicle will appear here.</span></div>
         )}
       </section>
     </section>

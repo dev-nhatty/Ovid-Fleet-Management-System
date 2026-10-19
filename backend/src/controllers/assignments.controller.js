@@ -12,7 +12,7 @@ async function getAssignmentDetails(req, res, next) {
   try {
     const requestResult = await pool.query(
       `SELECT tr.id, tr.employee_id, e.name AS employee_name, d.name AS department,
-              tr.destination, tr.trip_type, tr.status, tr.requested_at,
+              tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
               COALESCE(json_agg(json_build_object('id', tc.id, 'location', tc.location,
                 'sequenceOrder', tc.sequence_order) ORDER BY tc.sequence_order)
                 FILTER (WHERE tc.id IS NOT NULL), '[]') AS checkpoints,
@@ -30,7 +30,7 @@ async function getAssignmentDetails(req, res, next) {
 
     const [vehiclesResult, driversResult, pendingResult] = await Promise.all([
       pool.query(
-        `SELECT v.id, v.plate_number, v.status, vt.name AS vehicle_type,
+        `SELECT v.id, v.plate_number, v.status, v.brand_name, v.model_name, v.model_year, vt.name AS vehicle_type,
                 ft.name AS fuel_type
            FROM vehicles v
            LEFT JOIN vehicle_types vt ON vt.id = v.vehicle_type_id
@@ -53,8 +53,8 @@ async function getAssignmentDetails(req, res, next) {
           ORDER BY LOWER(u.name), u.id`
       ),
       pool.query(
-        `SELECT id, destination, trip_type, requested_at
-           FROM trip_requests
+        `SELECT tr.id, tr.origin, COALESCE(tr.destination, (SELECT tc.location FROM trip_checkpoints tc WHERE tc.trip_request_id = tr.id ORDER BY tc.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.requested_at
+           FROM trip_requests tr
           WHERE status = 'Pending'
           ORDER BY requested_at ASC, id ASC
           LIMIT 100`

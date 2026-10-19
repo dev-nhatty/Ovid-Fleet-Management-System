@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Clock3, RefreshCw, Search, Truck } from 'lucide-react';
 import { listVehicles } from '../../api/vehicles.api.js';
 import './vehicles.css';
+import { getVehicleName } from '../../utils/vehicleDisplay.js';
 
 const FILTERS = ['All', 'Available', 'In Use'];
 const dateTime = (value) => {
@@ -65,7 +66,9 @@ export default function VehiclesPage() {
     const query = search.trim().toLowerCase();
     return vehicles.filter((vehicle) => {
       const matchesFilter = filter === 'All' || vehicle.operational_status === filter;
-      const matchesSearch = !query || (vehicle.plate_number || '').toLowerCase().includes(query);
+      const searchable = [vehicle.plate_number, vehicle.brand_name, vehicle.model_name, vehicle.model_year, vehicle.vehicle_type]
+        .filter(Boolean).join(' ').toLowerCase();
+      const matchesSearch = !query || searchable.includes(query);
       return matchesFilter && matchesSearch;
     });
   }, [vehicles, filter, search]);
@@ -108,7 +111,7 @@ export default function VehiclesPage() {
         </div>
         <label className="vehicles-search">
           <Search size={16} aria-hidden="true" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Filter by plate number..." aria-label="Filter by plate number" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vehicle name or plate..." aria-label="Search vehicle name or plate" />
           <kbd>⌘F</kbd>
         </label>
       </div>
@@ -124,16 +127,16 @@ export default function VehiclesPage() {
       <div className="vehicles-table-card">
         <table className="vehicles-table">
           <thead>
-            <tr><th>PLATE NUMBER</th><th>VEHICLE TYPE</th><th>FUEL TYPE</th><th>STATUS</th><th>CURRENT TRIP DESTINATION</th></tr>
+            <tr><th>VEHICLE</th><th>VEHICLE TYPE</th><th>FUEL TYPE</th><th>STATUS</th><th>CURRENT TRIP DESTINATION</th></tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan="5"><div className="vehicles-state"><RefreshCw className="vehicles-spin" size={18} /> Loading vehicle registry…</div></td></tr>
             ) : !error && visibleVehicles.length === 0 ? (
-              <tr><td colSpan="5"><div className="vehicles-state"><Truck size={20} /><strong>No vehicles found</strong><span>{search ? 'Try another plate number.' : 'There are no vehicles matching this filter.'}</span></div></td></tr>
+              <tr><td colSpan="5"><div className="vehicles-state"><Truck size={20} /><strong>No vehicles found</strong><span>{search ? 'Try another vehicle name or plate number.' : 'There are no vehicles matching this filter.'}</span></div></td></tr>
             ) : visibleVehicles.map((vehicle) => (
               <tr key={vehicle.id} className="vehicles-table-row" onClick={() => navigate(`/manager/vehicles/${vehicle.id}`)} tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/manager/vehicles/${vehicle.id}`); } }} aria-label={`View details for vehicle ${vehicle.plate_number}`}>
-                <td className="vehicles-plate"><Link className="vehicles-plate-link" to={`/manager/vehicles/${vehicle.id}`} onClick={(event) => event.stopPropagation()}>{vehicle.plate_number}</Link></td>
+                <td className="vehicles-plate"><Link className="vehicles-plate-link vehicle-name-stack" to={`/manager/vehicles/${vehicle.id}`} onClick={(event) => event.stopPropagation()}><strong>{getVehicleName(vehicle)}</strong><small>{vehicle.plate_number}</small></Link></td>
                 <td>{vehicle.vehicle_type || '—'}</td>
                 <td className="vehicles-fuel">{vehicle.fuel_type || '—'}</td>
                 <td><VehicleStatus status={vehicle.operational_status} /></td>

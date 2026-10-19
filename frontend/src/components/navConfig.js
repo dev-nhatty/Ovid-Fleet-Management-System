@@ -11,7 +11,7 @@ import { ROLES } from '../config/roles.js';
 export const NAV = {
   [ROLES.MANAGER]: [
     { title: 'Dispatch', items: [
-      { label: 'Queue', to: '/manager/queue', icon: Inbox },
+      { label: 'Requests', to: '/manager/queue', icon: Inbox },
       { label: 'New Request', to: '/manager/new-request', icon: PlusCircle },
       { label: 'Assign Trip', to: '/manager/assign-trip', icon: GitFork },
       { label: 'Vehicles', to: '/manager/vehicles', icon: Truck },

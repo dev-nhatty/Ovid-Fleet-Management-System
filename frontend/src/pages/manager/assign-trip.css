@@ -79,3 +79,32 @@
 .assign-empty-small { padding:24px; text-align:center; color:var(--muted); background:#fff; border:1px dashed var(--line); border-radius:6px; font-size:13px; }
 @media (max-width: 900px) { .assign-resource-grid { grid-template-columns:1fr; gap:20px; } .assign-confirm-bar { flex-wrap:wrap; } .assign-confirm-copy { flex-basis:calc(100% - 60px); } .assign-confirm-bar .assign-button--ghost { margin-left:auto; } }
 @media (max-width: 600px) { .assign-heading { flex-direction:column; } .assign-routing-id { text-align:left; } .assign-request-summary { gap:8px; } .assign-summary-dot { display:none; } .assign-resource-card { padding:10px; } .assign-confirm-bar { align-items:flex-start; } .assign-confirm-bar .assign-button { flex:1; } .assign-request-meta { display:none; } }
+
+/* Tabbed, table-based resource selection */
+.assign-resource-panel { margin-top: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; overflow: hidden; }
+.assign-tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); background: #fbfaff; }
+.assign-tab { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 12px 16px; border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 650; }
+.assign-tab span { display: inline-grid; place-items: center; min-width: 21px; height: 21px; padding: 0 5px; border-radius: 20px; background: #eeedf5; color: #5f5b69; font-size: 11px; }
+.assign-tab.is-active { background: #fff; color: #1553d6; box-shadow: 0 -1px 0 var(--line), 1px 0 0 var(--line), -1px 0 0 var(--line); }
+.assign-tab.is-active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #1553d6; }
+.assign-table-wrap { width: 100%; overflow-x: auto; }
+.assign-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.assign-table th { padding: 13px 16px; background: #fbfaff; color: #777382; font-size: 11px; text-transform: uppercase; letter-spacing: .045em; font-weight: 700; white-space: nowrap; }
+.assign-table td { padding: 14px 16px; border-top: 1px solid #f0eef5; color: #5f5b69; white-space: nowrap; }
+.assign-table tbody tr:not(.assign-table-empty-row) { cursor: pointer; transition: background .12s ease; }
+.assign-table tbody tr:hover { background: #fafbff; }
+.assign-table tbody tr.is-selected { background: #f1f5ff; }
+.assign-table td strong { color: #292630; font-weight: 650; }
+.assign-table-empty { padding: 34px 16px !important; text-align: center; color: var(--muted) !important; }
+.assign-table-context { padding: 12px 16px; background: #f8f9ff; color: #666272; font-size: 12px; border-bottom: 1px solid var(--line); }
+.assign-table-context strong { color: #292630; }
+.assign-row-select { border: 1px solid #dedbe8; border-radius: 5px; background: #fff; color: #4e4a58; padding: 7px 10px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.assign-row-select:hover:not(:disabled) { border-color: #1553d6; color: #1553d6; }
+.assign-row-select.is-selected { border-color: #1553d6; background: #1553d6; color: #fff; }
+.assign-row-select:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 600px) { .assign-tabs { padding-left: 8px; } .assign-tab { flex: 1; justify-content: center; padding: 11px 8px; } .assign-table th, .assign-table td { padding: 11px 10px; } }
+
+/* Vehicle identity stack: descriptive name above registration plate. */
+.vehicle-name-stack { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.vehicle-name-stack strong { font-weight:650; }
+.vehicle-name-stack small { color:var(--muted, #777280); font-size:12px; font-weight:400; }

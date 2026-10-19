@@ -43,7 +43,7 @@ export default function DispatchQueuePage() {
 
   const visible = requests.filter((r) => {
     const typeMatch = tripFilter === 'All' || r.trip_type === tripFilter;
-    const text = `${r.employee_name || ''} ${r.department || ''} ${r.destination || ''}`.toLowerCase();
+    const text = `${r.employee_name || ''} ${r.department || ''} ${r.origin || ''} ${r.destination || ''}`.toLowerCase();
     return typeMatch && text.includes(search.toLowerCase());
   });
 
@@ -101,7 +101,7 @@ export default function DispatchQueuePage() {
                           <span className="avatar avatar--lg">{initials(r.employee_name)}</span>
                           <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}</div></div>
                         </div></td>
-                        <td><div className="place"><MapPin size={15} /><div><div className="strong">{r.destination}</div><div className="muted small">{r.checkpoints?.length || 0} intermediate stops</div></div></div></td>
+                        <td><div className="place"><MapPin size={15} /><div><div className="strong">{r.destination || `${r.checkpoints?.length || 0} destinations`}</div><div className="muted small">From: {r.origin || 'Origin not recorded'} · {r.checkpoints?.length || 0} destinations</div></div></div></td>
                         <td><span className="chip"><TripIcon size={14} /> {r.trip_type}{r.checkpoints?.length > 0 && <em>{r.checkpoints.length} stops</em>}</span></td>
                         <td><div className="strong">{Number.isNaN(requested.getTime()) ? '—' : requested.toLocaleDateString()}</div><div className="muted small">{Number.isNaN(requested.getTime()) ? '' : requested.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></td>
                         <td><Status status={r.status} /></td>
