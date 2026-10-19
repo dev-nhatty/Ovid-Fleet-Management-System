@@ -18,6 +18,7 @@ const tripRequestsRoutes = require('./routes/tripRequests.routes');
 const vehiclesRoutes = require('./routes/vehicles.routes');
 const driversRoutes = require('./routes/drivers.routes');
 const tripsRoutes = require('./routes/trips.routes');
+const fuelLogsRoutes = require('./routes/fuelLogs.routes');
 
 if (!process.env.SESSION_SECRET) {
   // Fail at startup, not on the first login.
@@ -77,6 +78,7 @@ app.use('/api/trip-requests', tripRequestsRoutes);
 app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/drivers', driversRoutes);
 app.use('/api/trips', tripsRoutes);
+app.use('/api/fuel-logs', fuelLogsRoutes);
 
 // Real routes go here, each narrowed to the roles that may use it:
 // app.use('/api/trip-requests', requireRole(ROLES.MANAGER), tripRequestsRoutes);
