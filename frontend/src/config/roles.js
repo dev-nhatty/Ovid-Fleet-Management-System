@@ -18,6 +18,6 @@ export const ROLE_LABELS = {
 // if they wander onto another role's pages. A role with no entry here has
 // no web pages (Driver, for now).
 export const ROLE_HOME = {
-  [ROLES.MANAGER]: '/manager/queue',
+  [ROLES.MANAGER]: '/manager/dashboard',
   [ROLES.ADMIN]: '/admin/users',
 };

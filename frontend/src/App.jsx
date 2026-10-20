@@ -5,6 +5,7 @@ import GuestRoute from './components/GuestRoute.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import RootRedirect from './components/RootRedirect.jsx';
 import DispatchQueuePage from './pages/manager/DispatchQueuePage.jsx';
+import DashboardPage from './pages/manager/DashboardPage.jsx';
 import NewRequestPage from './pages/manager/NewRequestPage.jsx';
 import AssignTripPage from './pages/manager/AssignTripPage.jsx';
 import VehiclesPage from './pages/manager/VehiclesPage.jsx';
@@ -29,6 +30,7 @@ export default function App() {
       {/* Manager (shown as "Officer") pages */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER]} />}>
         <Route element={<AppLayout />}>
+          <Route path="/manager/dashboard" element={<DashboardPage />} />
           <Route path="/manager/queue" element={<DispatchQueuePage />} />
           <Route path="/manager/new-request" element={<NewRequestPage />} />
           <Route path="/manager/assign-trip" element={<AssignTripPage />} />
