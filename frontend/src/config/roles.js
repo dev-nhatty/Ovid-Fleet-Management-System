@@ -19,5 +19,5 @@ export const ROLE_LABELS = {
 // no web pages (Driver, for now).
 export const ROLE_HOME = {
   [ROLES.MANAGER]: '/manager/dashboard',
-  [ROLES.ADMIN]: '/admin/users',
+  [ROLES.ADMIN]: '/admin/dashboard',
 };

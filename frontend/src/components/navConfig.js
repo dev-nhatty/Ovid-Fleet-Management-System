@@ -1,4 +1,4 @@
-import { LayoutDashboard, Inbox, PlusCircle, Truck, IdCard, Route, GitFork, History, Fuel, UserCog, Building2, Users, Tag, FlaskConical, Map, Clock, FileText } from 'lucide-react';
+import { LayoutDashboard, Inbox, PlusCircle, Truck, IdCard, Route, History, Fuel, UserCog, Building2, Users } from 'lucide-react';
 import { ROLES } from '../config/roles.js';
 
 export const NAV = {
@@ -17,18 +17,14 @@ export const NAV = {
     ]},
   ],
   [ROLES.ADMIN]: [
-    { title: 'Administration', items: [{ label: 'Users', to: '/admin/users', icon: UserCog }] },
+    { title: 'Administration', items: [
+      { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
+      { label: 'Users', to: '/admin/users', icon: UserCog },
+    ]},
     { title: 'Master Data', items: [
       { label: 'Departments', to: '/admin/departments', icon: Building2 },
       { label: 'Employees', to: '/admin/employees', icon: Users },
       { label: 'Vehicles', to: '/admin/vehicles', icon: Truck },
-      { label: 'Vehicle Types', to: '/admin/vehicle-types', icon: Tag },
-      { label: 'Fuel Types', to: '/admin/fuel-types', icon: FlaskConical },
-    ]},
-    { title: 'Oversight', items: [
-      { label: 'Trips', to: '/admin/trips', icon: Map },
-      { label: 'Fuel Logs', to: '/admin/fuel-logs', icon: Clock },
-      { label: 'Reports', to: '/admin/reports', icon: FileText },
     ]},
   ],
 };
