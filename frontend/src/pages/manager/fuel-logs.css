@@ -37,7 +37,7 @@
 .fuel-row-flagged { background:#fff8f7; }
 .fuel-row-flagged td, .fuel-row-flagged .fuel-date, .fuel-row-flagged .fuel-reference, .fuel-row-flagged .fuel-volume { color:#c71910; }
 .fuel-row-flagged td small { color:#e36b64; }
-.fuel-avatar { }
+/* .fuel-avatar { } */
 .fuel-row-flagged .fuel-avatar { background:#ffdedb; color:#c71910; }
 .fuel-status { display:inline-block!important; width:max-content; padding:2px 6px; border-radius:5px; }
 .fuel-status-flagged { background:#ffe5e2; color:#bd2018!important; }

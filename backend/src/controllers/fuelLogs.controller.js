@@ -49,7 +49,7 @@ async function listFuelLogs(req, res, next) {
     const currentPage = Math.min(page, totalPages);
     const rowsResult = await pool.query(
       `SELECT ftx.id, ftx.fueled_date, ftx.recorded_at, ftx.transaction_ref,
-        ftx.liters, ftx.status, v.id AS vehicle_id, v.plate_number,
+        ftx.liters, ftx.price_per_liter, (ftx.liters * ftx.price_per_liter)::numeric(14,2) AS total_cost, ftx.status, v.id AS vehicle_id, v.plate_number,
         v.brand_name, v.model_name, v.model_year, ft.name AS fuel_type,
         u.name AS recorded_by
        ${from} ${clause}
@@ -72,4 +72,45 @@ async function listFuelLogs(req, res, next) {
   }
 }
 
-module.exports = { listFuelLogs };
+
+async function getFuelOptions(req, res, next) {
+  try {
+    const [vehicles, fuelTypes] = await Promise.all([
+      pool.query(`SELECT v.id, v.plate_number, v.brand_name, v.model_name, v.model_year, vt.name AS vehicle_type
+        FROM vehicles v LEFT JOIN vehicle_types vt ON vt.id = v.vehicle_type_id
+        WHERE v.status = 'Active' ORDER BY v.plate_number`),
+      pool.query('SELECT id, name FROM fuel_types ORDER BY name')
+    ]);
+    res.json({ vehicles: vehicles.rows, fuelTypes: fuelTypes.rows });
+  } catch (err) { next(err); }
+}
+
+async function createFuelTransaction(req, res, next) {
+  const vehicleId = Number(req.body.vehicleId), fuelTypeId = Number(req.body.fuelTypeId);
+  const liters = Number(req.body.liters), price = Number(req.body.pricePerLiter);
+  const date = String(req.body.fueledDate || '');
+  if (!Number.isSafeInteger(vehicleId) || vehicleId < 1) return res.status(400).json({ error: 'Select a valid vehicle.' });
+  if (!Number.isSafeInteger(fuelTypeId) || fuelTypeId < 1) return res.status(400).json({ error: 'Select a valid fuel type.' });
+  if (!Number.isFinite(liters) || liters <= 0) return res.status(400).json({ error: 'Quantity must be greater than zero.' });
+  if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'Price per liter cannot be negative.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return res.status(400).json({ error: 'Enter a valid fueling date.' });
+  try {
+    const [vehicle, fuel] = await Promise.all([
+      pool.query("SELECT id FROM vehicles WHERE id = $1 AND status = 'Active'", [vehicleId]),
+      pool.query('SELECT id FROM fuel_types WHERE id = $1', [fuelTypeId])
+    ]);
+    if (!vehicle.rowCount) return res.status(400).json({ error: 'Selected vehicle is not active or does not exist.' });
+    if (!fuel.rowCount) return res.status(400).json({ error: 'Selected fuel type does not exist.' });
+    const ref = `FUEL-${date.slice(0,4)}-${Date.now()}-${Math.floor(Math.random()*10000).toString().padStart(4,'0')}`;
+    const saved = await pool.query(
+      `INSERT INTO fuel_transactions (vehicle_id, fueled_date, fuel_type_id, liters, price_per_liter, transaction_ref, recorded_by_user_id)
+       VALUES ($1, $2::date, $3, $4, $5, $6, $7)
+       RETURNING id, fueled_date, liters, price_per_liter, transaction_ref, recorded_at`,
+      [vehicleId, date, fuelTypeId, liters, price, ref, req.user.id]
+    );
+    res.status(201).json({ transaction: saved.rows[0], totalCost: Number((liters * price).toFixed(2)) });
+  } catch (err) { next(err); }
+}
+
+module.exports = { listFuelLogs, getFuelOptions, createFuelTransaction };
+
