@@ -54,12 +54,24 @@ export default function AssignTripPage() {
       setError('Select both an available vehicle and an available driver.');
       return;
     }
+    const requiredPassengerSeats = 1 + Number(data.request.additional_passenger_count || 0);
+    const availablePassengerSeats = selectedVehicleInfo?.seat_capacity == null ? null : Number(selectedVehicleInfo.seat_capacity) - 1;
+    const capacityMismatch = availablePassengerSeats == null || requiredPassengerSeats > availablePassengerSeats;
+    let capacityOverride = false;
+    if (capacityMismatch) {
+      const detail = availablePassengerSeats == null
+        ? 'This vehicle has no recorded total seat capacity. The driver seat must be reserved, and capacity cannot be verified.'
+        : `This trip needs ${requiredPassengerSeats} passenger seats, but the selected vehicle has only ${availablePassengerSeats} passenger seats after reserving the driver's seat.`;
+      if (!window.confirm(`${detail}\n\nDo you want to override this warning and assign the vehicle?`)) return;
+      capacityOverride = true;
+    }
     setSaving(true);
     setError('');
     try {
       await assignTrip(data.request.id, {
         vehicleId: Number(selectedVehicle),
         driverId: Number(selectedDriver),
+        capacityOverride,
       });
       navigate('/manager/queue', {
         state: {
@@ -92,7 +104,7 @@ export default function AssignTripPage() {
               {pendingRequests.map((request) => (
                 <button className="assign-request-row" key={request.id} onClick={() => navigate(`/manager/assign-trip/${request.id}`)}>
                   <span className="assign-request-avatar">{initials(request.employee_name)}</span>
-                  <span className="assign-request-main"><strong>{request.employee_name}</strong><small>{request.department || 'No department'} · {request.destination}</small></span>
+                  <span className="assign-request-main"><strong>{request.employee_name}</strong><small>{request.department || 'No department'} · {request.destination} · {Number(request.additional_passenger_count || 0)} additional passenger(s)</small></span>
                   <span className="assign-request-meta"><code>{requestRef(request.id)}</code><small>{tripTypeLabel(request.trip_type)}</small></span>
                   <ArrowRight size={17} />
                 </button>
@@ -123,6 +135,7 @@ export default function AssignTripPage() {
         <span className="assign-summary-dot">•</span><span>{request.department || 'No department'}</span>
         <span className="assign-summary-dot">•</span><span className="assign-summary-destination"><MapPin size={16} /> Destination: {request.destination}</span>
         <span className="assign-summary-dot">•</span><span className="assign-type-chip">{tripTypeLabel(request.trip_type)}</span>
+        <span className="assign-summary-dot">•</span><span className="assign-passenger-chip">{1 + Number(request.additional_passenger_count || 0)} passenger seats needed ({Number(request.additional_passenger_count || 0)} additional)</span>
       </section>
 
       {error && <div className="assign-alert" role="alert">{error}</div>}
@@ -136,12 +149,12 @@ export default function AssignTripPage() {
         {resourceTab === 'vehicle' ? (
           <div className="assign-table-wrap" role="tabpanel">
             <table className="assign-table">
-              <thead><tr><th>Vehicle</th><th>Type</th><th>Fuel</th><th>Selection</th></tr></thead>
+              <thead><tr><th>Vehicle</th><th>Type</th><th>Fuel</th><th>Total seats</th><th>Selection</th></tr></thead>
               <tbody>
                 {data.vehicles.length === 0 ? <tr><td colSpan="5" className="assign-table-empty">No available vehicles found.</td></tr> : data.vehicles.map((vehicle) => {
                   const active = selectedVehicle === String(vehicle.id);
                   return <tr key={vehicle.id} className={active ? 'is-selected' : ''} onClick={() => { if (!unavailableRequest) { setSelectedVehicle(String(vehicle.id)); setResourceTab('driver'); } }} aria-selected={active}>
-                    <td><div className="vehicle-name-stack"><strong>{vehicleDisplayName(vehicle)}</strong><small>{vehicle.plate_number}</small></div></td><td>{vehicle.vehicle_type || '—'}</td><td>{vehicle.fuel_type || '—'}</td><td><button type="button" className={`assign-row-select ${active ? 'is-selected' : ''}`} disabled={unavailableRequest} onClick={(event) => { event.stopPropagation(); setSelectedVehicle(String(vehicle.id)); setResourceTab('driver'); }}>{active ? 'Selected · Continue' : 'Select vehicle'}</button></td>
+                    <td><div className="vehicle-name-stack"><strong>{vehicleDisplayName(vehicle)}</strong><small>{vehicle.plate_number}</small></div></td><td>{vehicle.vehicle_type || '—'}</td><td>{vehicle.fuel_type || '—'}</td><td>{vehicle.seat_capacity == null ? <span className="assign-capacity-unknown">Not recorded</span> : <>{vehicle.seat_capacity} total / {Number(vehicle.seat_capacity) - 1} passengers</>}</td><td><button type="button" className={`assign-row-select ${active ? 'is-selected' : ''}`} disabled={unavailableRequest} onClick={(event) => { event.stopPropagation(); setSelectedVehicle(String(vehicle.id)); setResourceTab('driver'); }}>{active ? 'Selected · Continue' : 'Select vehicle'}</button></td>
                   </tr>;
                 })}
               </tbody>
@@ -149,7 +162,7 @@ export default function AssignTripPage() {
           </div>
         ) : (
           <div className="assign-table-wrap" role="tabpanel">
-            <div className="assign-table-context">{selectedVehicleInfo ? <>Selected vehicle: <strong>{vehicleDisplayName(selectedVehicleInfo)} · {selectedVehicleInfo.plate_number}</strong></> : 'Select a vehicle first, then choose an available driver.'}</div>
+            <div className="assign-table-context">{selectedVehicleInfo ? <>Selected vehicle: <strong>{vehicleDisplayName(selectedVehicleInfo)} · {selectedVehicleInfo.plate_number}</strong> · {selectedVehicleInfo.seat_capacity == null ? 'Seat capacity not recorded' : `${Number(selectedVehicleInfo.seat_capacity) - 1} passenger seats (driver seat reserved)`}</> : 'Select a vehicle first, then choose an available driver.'}</div>
             <table className="assign-table">
               <thead><tr><th>Driver name</th><th>Phone</th><th>Selection</th></tr></thead>
               <tbody>

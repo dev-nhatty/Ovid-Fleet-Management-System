@@ -39,25 +39,24 @@ CREATE TABLE users (
 CREATE TABLE vehicles (
     id                      SERIAL PRIMARY KEY,
     plate_number            VARCHAR(20) NOT NULL UNIQUE,
-    fuel_efficiency_km_per_l NUMERIC(8,2) CHECK (fuel_efficiency_km_per_l IS NULL OR fuel_efficiency_km_per_l > 0),
     vehicle_type_id         INTEGER REFERENCES vehicle_types(id),
     fuel_type_id            INTEGER REFERENCES fuel_types(id),
     status                  VARCHAR(30) NOT NULL DEFAULT 'Active'
-                                CHECK (status IN ('Active', 'Out of Service', 'Returned to Provider'))
+                                CHECK (status IN ('Active', 'Out of Service', 'Returned to Provider')),
+    seat_capacity           INTEGER CHECK (seat_capacity IS NULL OR seat_capacity >= 2)
 );
 
 CREATE TABLE trip_requests (
     id                      SERIAL PRIMARY KEY,
     employee_id             INTEGER NOT NULL REFERENCES employees(id),
-    destination             VARCHAR(255),
-    origin                  VARCHAR(255) NOT NULL,
-    planned_distance_km     NUMERIC(8,2) CHECK (planned_distance_km IS NULL OR planned_distance_km > 0),
+    destination             VARCHAR(255) NOT NULL,
     trip_type               VARCHAR(30) NOT NULL
                                 CHECK (trip_type IN ('One-way', 'Round Trip', 'With Checkpoints')),
     status                  VARCHAR(20) NOT NULL DEFAULT 'Pending'
                                 CHECK (status IN ('Pending', 'Assigned', 'Cancelled')),
     requested_at            TIMESTAMP NOT NULL DEFAULT NOW(),
-    recorded_by_user_id     INTEGER NOT NULL REFERENCES users(id)
+    recorded_by_user_id     INTEGER NOT NULL REFERENCES users(id),
+    additional_passenger_count INTEGER NOT NULL DEFAULT 0 CHECK (additional_passenger_count >= 0)
 );
 
 CREATE TABLE trip_checkpoints (
@@ -79,7 +78,8 @@ CREATE TABLE trips (
     started_at              TIMESTAMP,
     completed_at            TIMESTAMP,
     distance_km             NUMERIC(8,2),
-    recorded_by_user_id     INTEGER NOT NULL REFERENCES users(id)
+    recorded_by_user_id     INTEGER NOT NULL REFERENCES users(id),
+    capacity_override       BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE fuel_transactions (

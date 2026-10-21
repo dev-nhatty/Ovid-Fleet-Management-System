@@ -145,7 +145,7 @@ export default function DispatchQueuePage() {
                       >
                         <td><div className="person">
                           <span className="avatar avatar--lg">{initials(r.employee_name)}</span>
-                          <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}{isNewlyAssigned && <span className="queue-new-label">JUST ASSIGNED</span>}</div></div>
+                          <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> {1 + Number(r.additional_passenger_count || 0)} passenger seats <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}{isNewlyAssigned && <span className="queue-new-label">JUST ASSIGNED</span>}</div></div>
                         </div></td>
                         <td><div className="place"><MapPin size={15} /><div><div className="strong">{r.destination || `${r.checkpoints?.length || 0} destinations`}</div><div className="muted small">From: {r.origin || 'Origin not recorded'} · {r.checkpoints?.length || 0} destinations</div></div></div></td>
                         <td><span className="chip"><TripIcon size={14} /> {r.trip_type}{r.checkpoints?.length > 0 && <em>{r.checkpoints.length} stops</em>}</span></td>

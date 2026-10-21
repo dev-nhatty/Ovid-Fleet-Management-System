@@ -37,7 +37,7 @@ async function listTripRequests(req, res, next) {
     const currentPage = Math.min(page, totalPages);
     const { rows } = await pool.query(
       `SELECT tr.id, tr.employee_id, e.name AS employee_name, d.name AS department,
-              tr.origin, tr.planned_distance_km, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
+              tr.additional_passenger_count, tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
               tr.recorded_by_user_id, t.id AS trip_id, t.assigned_at,
               COALESCE(json_agg(json_build_object('id', tc.id, 'location', tc.location,
                 'sequenceOrder', tc.sequence_order)
@@ -61,15 +61,15 @@ async function createTripRequest(req, res, next) {
   const employeeId = validId(body.employeeId);
   const origin = str(body.origin);
   const destination = str(body.destination);
-  const plannedDistanceKm = body.plannedDistanceKm === '' || body.plannedDistanceKm == null ? null : Number(body.plannedDistanceKm);
   const tripType = body.tripType;
+  const additionalPassengerCount = body.additionalPassengerCount === '' || body.additionalPassengerCount == null ? 0 : Number(body.additionalPassengerCount);
   const checkpoints = Array.isArray(body.checkpoints) ? body.checkpoints : [];
   const fields = {};
 
   if (!employeeId) fields.employeeId = 'Choose an employee from the directory.';
+  if (!Number.isInteger(additionalPassengerCount) || additionalPassengerCount < 0 || additionalPassengerCount > 1000) fields.additionalPassengerCount = 'Enter a whole number from 0 to 1000.';
   if (!origin) fields.origin = 'Origin is required.';
   else if (origin.length > 255) fields.origin = 'Origin must be 255 characters or fewer.';
-  if (plannedDistanceKm === null || !Number.isFinite(plannedDistanceKm) || plannedDistanceKm <= 0 || plannedDistanceKm > 1000000) fields.plannedDistanceKm = 'Enter a planned distance greater than 0 km.';
   if (tripType !== 'With Checkpoints' && !destination) fields.destination = 'Destination is required.';
   else if (destination.length > 255) fields.destination = 'Destination must be 255 characters or fewer.';
   if (!TRIP_TYPES.includes(tripType)) fields.tripType = 'Choose a valid trip mode.';
@@ -107,10 +107,10 @@ async function createTripRequest(req, res, next) {
 
     const inserted = await client.query(
       `INSERT INTO trip_requests
-        (employee_id, origin, planned_distance_km, destination, trip_type, status, recorded_by_user_id)
+        (employee_id, origin, destination, trip_type, additional_passenger_count, status, recorded_by_user_id)
        VALUES ($1, $2, $3, $4, $5, 'Pending', $6)
-       RETURNING id, employee_id, origin, planned_distance_km, destination, trip_type, status, requested_at, recorded_by_user_id`,
-      [employeeId, origin, plannedDistanceKm, tripType === 'With Checkpoints' ? null : destination, tripType, req.user.id]
+       RETURNING id, employee_id, origin, destination, trip_type, additional_passenger_count, status, requested_at, recorded_by_user_id`,
+      [employeeId, origin, tripType === 'With Checkpoints' ? null : destination, tripType, additionalPassengerCount, req.user.id]
     );
     const request = inserted.rows[0];
     for (let i = 0; i < normalizedStops.length; i++) {

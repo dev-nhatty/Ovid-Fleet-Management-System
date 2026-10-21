@@ -108,3 +108,6 @@
 .vehicle-name-stack { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
 .vehicle-name-stack strong { font-weight:650; }
 .vehicle-name-stack small { color:var(--muted, #777280); font-size:12px; font-weight:400; }
+
+.assign-passenger-chip { display:inline-flex; align-items:center; padding:5px 9px; border-radius:6px; background:#eef5ff; color:#2454a6; font-size:12px; font-weight:600; }
+.assign-capacity-unknown { color:#a15c00; font-weight:600; }

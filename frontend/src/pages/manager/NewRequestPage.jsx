@@ -11,10 +11,10 @@ const blankForm = {
   employee: null,
   employeeQuery: '',
   origin: '',
-  plannedDistanceKm: '',
   tripType: 'With Checkpoints',
   destination: '',
   checkpoints: [],
+  additionalPassengerCount: '0',
 };
 
 
@@ -106,8 +106,9 @@ export default function NewRequestPage() {
     setFields({});
     if (!form.origin.trim()) { setFields({ origin: 'Origin is required.' }); setError('Please enter the trip origin.'); return; }
     if (form.origin.trim().length > 255) { setFields({ origin: 'Origin must be 255 characters or fewer.' }); setError('Please correct the highlighted fields.'); return; }
-    if (!form.plannedDistanceKm || !Number.isFinite(Number(form.plannedDistanceKm)) || Number(form.plannedDistanceKm) <= 0) { setFields({ plannedDistanceKm: 'Enter the planned distance in kilometres.' }); setError('Please enter a valid planned distance.'); return; }
     if (form.tripType !== 'With Checkpoints' && !form.destination.trim()) { setFields({ destination: 'Destination is required.' }); setError('Please enter a destination.'); return; }
+    const additionalPassengerCount = Number(form.additionalPassengerCount);
+    if (!Number.isInteger(additionalPassengerCount) || additionalPassengerCount < 0 || additionalPassengerCount > 1000) { setFields({ additionalPassengerCount: 'Enter a whole number from 0 to 1000.' }); setError('Please enter a valid additional passenger count.'); return; }
     if (!form.employee) {
       setFields({ employeeId: 'Choose an employee from the directory.' });
       setError('Please choose an employee from the directory.');
@@ -117,8 +118,8 @@ export default function NewRequestPage() {
     try {
       const result = await createTripRequest({
         employeeId: form.employee.id,
+        additionalPassengerCount,
         origin: form.origin.trim(),
-        plannedDistanceKm: Number(form.plannedDistanceKm),
         tripType: form.tripType,
         destination: form.tripType === 'With Checkpoints' ? '' : form.destination.trim(),
         checkpoints: form.checkpoints.map(({ location }) => ({ location: location.trim() })),
@@ -203,6 +204,13 @@ export default function NewRequestPage() {
           </div>
 
           <div className="request-field request-field--wide">
+            <label htmlFor="additionalPassengerCount">ADDITIONAL PASSENGERS <b>*</b></label>
+            <div className="request-input-wrap"><UserRoundSearch size={17} /><input id="additionalPassengerCount" type="number" min="0" max="1000" step="1" value={form.additionalPassengerCount} aria-invalid={Boolean(fields.additionalPassengerCount)} onChange={(e) => update('additionalPassengerCount', e.target.value)} /></div>
+            <small>Enter the number of people travelling with the requester. The requester is counted separately.</small>
+            {fields.additionalPassengerCount && <small className="request-field-error">{fields.additionalPassengerCount}</small>}
+          </div>
+
+          <div className="request-field request-field--wide">
             <label>TRIP MODE <b>*</b></label>
             <div className="request-trip-modes" role="group" aria-label="Trip mode">
               {['One-way', 'Round Trip', 'With Checkpoints'].map((type) => (
@@ -219,14 +227,6 @@ export default function NewRequestPage() {
             <div className="request-input-wrap"><MapPin size={17} /><input id="origin" maxLength={255} value={form.origin}
               aria-invalid={Boolean(fields.origin)} placeholder="Enter pickup / starting location" onChange={(e) => update('origin', e.target.value)} /></div>
             {fields.origin && <small className="request-field-error">{fields.origin}</small>}
-          </div>
-
-          <div className="request-field request-field--wide">
-            <label htmlFor="planned-distance">PLANNED DISTANCE (KM) <b>*</b></label>
-            <div className="request-input-wrap"><Route size={17} /><input id="planned-distance" type="number" min="0.01" step="0.01" inputMode="decimal" value={form.plannedDistanceKm}
-              aria-invalid={Boolean(fields.plannedDistanceKm)} placeholder="Estimated route distance in kilometres" onChange={(e) => update('plannedDistanceKm', e.target.value)} /></div>
-            <small>Used for fuel estimation until an actual trip distance is recorded.</small>
-            {fields.plannedDistanceKm && <small className="request-field-error">{fields.plannedDistanceKm}</small>}
           </div>
 
           {form.tripType !== 'With Checkpoints' && <div className="request-field request-field--wide">
@@ -280,6 +280,8 @@ export default function NewRequestPage() {
             <div className="request-summary-line"><span>Employee</span><strong>{form.employee?.name || 'Not selected'}</strong></div>
             <div className="request-summary-line"><span>Department</span><strong>{form.employee?.department || '—'}</strong></div>
             <div className="request-summary-line"><span>Trip mode</span><strong>{form.tripType}</strong></div>
+            <div className="request-summary-line"><span>Additional passengers</span><strong>{Number(form.additionalPassengerCount) || 0}</strong></div>
+            <div className="request-summary-line"><span>Total passenger seats needed</span><strong>{1 + (Number(form.additionalPassengerCount) || 0)}</strong></div>
             <div className="request-summary-line"><span>Checkpoints</span><strong>{form.checkpoints.length}</strong></div>
             <div className="request-summary-foot">Vehicle and driver assignment happens after the request is created.</div>
           </section>
