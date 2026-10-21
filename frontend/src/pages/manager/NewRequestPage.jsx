@@ -11,6 +11,7 @@ const blankForm = {
   employee: null,
   employeeQuery: '',
   origin: '',
+  plannedDistanceKm: '',
   tripType: 'With Checkpoints',
   destination: '',
   checkpoints: [],
@@ -105,6 +106,7 @@ export default function NewRequestPage() {
     setFields({});
     if (!form.origin.trim()) { setFields({ origin: 'Origin is required.' }); setError('Please enter the trip origin.'); return; }
     if (form.origin.trim().length > 255) { setFields({ origin: 'Origin must be 255 characters or fewer.' }); setError('Please correct the highlighted fields.'); return; }
+    if (!form.plannedDistanceKm || !Number.isFinite(Number(form.plannedDistanceKm)) || Number(form.plannedDistanceKm) <= 0) { setFields({ plannedDistanceKm: 'Enter the planned distance in kilometres.' }); setError('Please enter a valid planned distance.'); return; }
     if (form.tripType !== 'With Checkpoints' && !form.destination.trim()) { setFields({ destination: 'Destination is required.' }); setError('Please enter a destination.'); return; }
     if (!form.employee) {
       setFields({ employeeId: 'Choose an employee from the directory.' });
@@ -116,6 +118,7 @@ export default function NewRequestPage() {
       const result = await createTripRequest({
         employeeId: form.employee.id,
         origin: form.origin.trim(),
+        plannedDistanceKm: Number(form.plannedDistanceKm),
         tripType: form.tripType,
         destination: form.tripType === 'With Checkpoints' ? '' : form.destination.trim(),
         checkpoints: form.checkpoints.map(({ location }) => ({ location: location.trim() })),
@@ -216,6 +219,14 @@ export default function NewRequestPage() {
             <div className="request-input-wrap"><MapPin size={17} /><input id="origin" maxLength={255} value={form.origin}
               aria-invalid={Boolean(fields.origin)} placeholder="Enter pickup / starting location" onChange={(e) => update('origin', e.target.value)} /></div>
             {fields.origin && <small className="request-field-error">{fields.origin}</small>}
+          </div>
+
+          <div className="request-field request-field--wide">
+            <label htmlFor="planned-distance">PLANNED DISTANCE (KM) <b>*</b></label>
+            <div className="request-input-wrap"><Route size={17} /><input id="planned-distance" type="number" min="0.01" step="0.01" inputMode="decimal" value={form.plannedDistanceKm}
+              aria-invalid={Boolean(fields.plannedDistanceKm)} placeholder="Estimated route distance in kilometres" onChange={(e) => update('plannedDistanceKm', e.target.value)} /></div>
+            <small>Used for fuel estimation until an actual trip distance is recorded.</small>
+            {fields.plannedDistanceKm && <small className="request-field-error">{fields.plannedDistanceKm}</small>}
           </div>
 
           {form.tripType !== 'With Checkpoints' && <div className="request-field request-field--wide">

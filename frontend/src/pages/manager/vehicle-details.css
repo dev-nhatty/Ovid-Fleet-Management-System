@@ -9,6 +9,8 @@
 .vehicle-detail-title-line h1 { margin:0; color:#23212a; font-size:28px; line-height:1.25; font-weight:600; letter-spacing:.015em; }
 .vehicle-detail-identity p { margin:7px 0 0; color:#55515d; font-size:14px; }
 .vehicle-detail-identity p span { padding:0 3px; }
+.vehicle-detail-efficiency { display:inline-flex; align-items:center; gap:7px; margin-top:13px; padding:7px 10px; border:1px solid #e7e3ef; border-radius:7px; background:#faf9fc; color:#625e69; font-size:12px; }
+.vehicle-detail-efficiency strong { margin-left:3px; color:#282630; font-weight:600; }
 .vehicle-detail-operational { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; }
 .vehicle-detail-operational i { width:6px; height:6px; border-radius:50%; background:currentColor; }
 .vehicle-detail-operational.is-available { color:#07885a; background:#edfff7; }

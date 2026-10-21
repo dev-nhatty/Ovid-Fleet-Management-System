@@ -16,7 +16,55 @@ async function listTrips(req,res,next){
  const s=await pool.query(`SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE status IN('Assigned','In Progress'))::int active,COUNT(*) FILTER(WHERE status='Completed' AND completed_at>=CURRENT_DATE)::int completed_today FROM trips`);
  const d=await pool.query(`SELECT DISTINCT name FROM departments ORDER BY name`);res.json({trips:r.rows,total,page:currentPage,pageSize,totalPages:pages,stats:s.rows[0],departments:d.rows.map(x=>x.name)});
  }catch(e){next(e);}}
-async function getTrip(req,res,next){if(!validId(req.params.tripId))return res.status(400).json({error:'Invalid trip ID.'});try{const r=await pool.query(`SELECT t.id trip_id,tr.id request_id,t.status,t.assigned_at,t.started_at,t.completed_at,t.distance_km,tr.employee_id,e.name employee_name,e.phone employee_phone,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,v.id vehicle_id,v.plate_number,v.brand_name,v.model_name,v.model_year,vt.name vehicle_type,v.status vehicle_status,dr.id driver_id,dr.name driver_name,dr.phone driver_phone,recorder.name recorded_by,COALESCE((SELECT json_agg(json_build_object('id',tc.id,'location',tc.location,'sequenceOrder',tc.sequence_order) ORDER BY tc.sequence_order) FROM trip_checkpoints tc WHERE tc.trip_request_id=tr.id),'[]'::json) checkpoints FROM trips t JOIN trip_requests tr ON tr.id=t.trip_request_id JOIN employees e ON e.id=tr.employee_id LEFT JOIN departments dep ON dep.id=e.department_id JOIN vehicles v ON v.id=t.vehicle_id LEFT JOIN vehicle_types vt ON vt.id=v.vehicle_type_id JOIN users dr ON dr.id=t.driver_id LEFT JOIN users recorder ON recorder.id=t.recorded_by_user_id WHERE t.id=$1`,[Number(req.params.tripId)]);if(!r.rowCount)return res.status(404).json({error:'Trip not found.'});res.json({trip:r.rows[0]});}catch(e){next(e);}}
+async function getTrip(req, res, next) {
+ if (!validId(req.params.tripId)) return res.status(400).json({ error: 'Invalid trip ID.' });
+ try {
+  const r = await pool.query(`SELECT t.id trip_id,tr.id request_id,t.status,t.assigned_at,t.started_at,t.completed_at,t.distance_km,
+    tr.planned_distance_km,tr.employee_id,e.name employee_name,e.phone employee_phone,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,
+    v.id vehicle_id,v.plate_number,v.brand_name,v.model_name,v.model_year,v.fuel_efficiency_km_per_l,vt.name vehicle_type,v.status vehicle_status,
+    dr.id driver_id,dr.name driver_name,dr.phone driver_phone,recorder.name recorded_by,
+    (SELECT f.price_per_liter FROM fuel_transactions f WHERE f.fuel_type_id=v.fuel_type_id AND f.price_per_liter > 0 AND f.status IN ('Recorded', 'Verified') ORDER BY f.fueled_date DESC, f.recorded_at DESC, f.id DESC LIMIT 1) AS fuel_price_per_liter,
+    COALESCE((SELECT json_agg(json_build_object('id',tc.id,'location',tc.location,'sequenceOrder',tc.sequence_order) ORDER BY tc.sequence_order) FROM trip_checkpoints tc WHERE tc.trip_request_id=tr.id),'[]'::json) checkpoints
+    FROM trips t JOIN trip_requests tr ON tr.id=t.trip_request_id JOIN employees e ON e.id=tr.employee_id LEFT JOIN departments dep ON dep.id=e.department_id
+    JOIN vehicles v ON v.id=t.vehicle_id LEFT JOIN vehicle_types vt ON vt.id=v.vehicle_type_id JOIN users dr ON dr.id=t.driver_id
+    LEFT JOIN users recorder ON recorder.id=t.recorded_by_user_id WHERE t.id=$1`, [Number(req.params.tripId)]);
+  if (!r.rowCount) return res.status(404).json({ error: 'Trip not found.' });
+  const trip = r.rows[0];
+  const actualDistance = trip.distance_km == null ? null : Number(trip.distance_km);
+  const plannedDistance = trip.planned_distance_km == null ? null : Number(trip.planned_distance_km);
+  const estimateDistance = actualDistance != null && actualDistance > 0 ? actualDistance : plannedDistance;
+  const efficiency = trip.fuel_efficiency_km_per_l == null ? null : Number(trip.fuel_efficiency_km_per_l);
+  const loggedPrice = trip.fuel_price_per_liter == null ? null : Number(trip.fuel_price_per_liter);
+  const configuredDefaultPrice = Number(process.env.DEFAULT_FUEL_PRICE_PER_LITER);
+  const price = loggedPrice != null && loggedPrice > 0 ? loggedPrice : Number.isFinite(configuredDefaultPrice) && configuredDefaultPrice > 0 ? configuredDefaultPrice : null;
+  trip.fuel_price_source = loggedPrice != null && loggedPrice > 0 ? 'fuel_log' : price != null ? 'configured_default' : null;
+  trip.fuel_price_per_liter = price;
+  trip.estimate_distance_km = estimateDistance;
+  trip.estimate_distance_source = actualDistance != null && actualDistance > 0 ? 'actual' : plannedDistance != null ? 'planned' : null;
+  trip.estimated_fuel_liters = estimateDistance != null && estimateDistance > 0 && efficiency != null && efficiency > 0 ? Number((estimateDistance / efficiency).toFixed(2)) : null;
+  trip.estimated_fuel_cost = trip.estimated_fuel_liters != null && price != null && price > 0 ? Number((trip.estimated_fuel_liters * price).toFixed(2)) : null;
+  res.json({ trip });
+ } catch (e) { next(e); }
+}
+
+async function updateTripDistance(req, res, next) {
+ const tripId = Number(req.params.tripId);
+ if (!validId(tripId)) return res.status(400).json({ error: 'Invalid trip ID.' });
+ const raw = req.body?.distanceKm;
+ const distanceKm = raw === '' || raw == null ? null : Number(raw);
+ if (distanceKm !== null && (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 1000000)) {
+  return res.status(400).json({ error: 'Actual distance must be greater than 0 km and no more than 1,000,000 km.' });
+ }
+ try {
+  const result = await pool.query(`UPDATE trips SET distance_km=$1 WHERE id=$2 AND status <> 'Cancelled' RETURNING id, distance_km`, [distanceKm, tripId]);
+  if (!result.rowCount) {
+   const exists = await pool.query('SELECT id FROM trips WHERE id=$1', [tripId]);
+   if (!exists.rowCount) return res.status(404).json({ error: 'Trip not found.' });
+   return res.status(409).json({ error: 'Actual distance cannot be changed for a cancelled trip.' });
+  }
+  res.json({ trip: result.rows[0], message: 'Actual trip distance saved.' });
+ } catch (err) { next(err); }
+}
 async function updateTripStatus(req, res, next) {
  const tripId = Number(req.params.tripId);
  const nextStatus = req.body?.status;
@@ -83,4 +131,4 @@ async function updateTripStatus(req, res, next) {
   client.release();
  }
 }
-module.exports={listTrips,getTrip,updateTripStatus};
+module.exports={listTrips,getTrip,updateTripStatus,updateTripDistance};

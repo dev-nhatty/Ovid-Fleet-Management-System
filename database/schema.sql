@@ -39,6 +39,7 @@ CREATE TABLE users (
 CREATE TABLE vehicles (
     id                      SERIAL PRIMARY KEY,
     plate_number            VARCHAR(20) NOT NULL UNIQUE,
+    fuel_efficiency_km_per_l NUMERIC(8,2) CHECK (fuel_efficiency_km_per_l IS NULL OR fuel_efficiency_km_per_l > 0),
     vehicle_type_id         INTEGER REFERENCES vehicle_types(id),
     fuel_type_id            INTEGER REFERENCES fuel_types(id),
     status                  VARCHAR(30) NOT NULL DEFAULT 'Active'
@@ -48,7 +49,9 @@ CREATE TABLE vehicles (
 CREATE TABLE trip_requests (
     id                      SERIAL PRIMARY KEY,
     employee_id             INTEGER NOT NULL REFERENCES employees(id),
-    destination             VARCHAR(255) NOT NULL,
+    destination             VARCHAR(255),
+    origin                  VARCHAR(255) NOT NULL,
+    planned_distance_km     NUMERIC(8,2) CHECK (planned_distance_km IS NULL OR planned_distance_km > 0),
     trip_type               VARCHAR(30) NOT NULL
                                 CHECK (trip_type IN ('One-way', 'Round Trip', 'With Checkpoints')),
     status                  VARCHAR(20) NOT NULL DEFAULT 'Pending'

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, MapPin, UserRound, Truck, Route, CalendarClock, CheckCircle2, Play, Ban } from 'lucide-react';
-import { getTrip, updateTripStatus } from '../../api/trips.api.js';
+import { getTrip, updateTripStatus, updateTripDistance } from '../../api/trips.api.js';
 import './trips.css';
 import { getVehicleName } from '../../utils/vehicleDisplay.js';
 
@@ -19,6 +19,10 @@ export default function TripDetailPage() {
   const [cancelStep, setCancelStep] = useState(0);
   const [selectedCheckpointIds, setSelectedCheckpointIds] = useState([]);
   const [cancelledCheckpointIds, setCancelledCheckpointIds] = useState([]);
+  const [actualDistanceInput, setActualDistanceInput] = useState('');
+  const [savingDistance, setSavingDistance] = useState(false);
+  const [distanceMessage, setDistanceMessage] = useState('');
+  const [distanceError, setDistanceError] = useState('');
 
   async function load() {
     setLoading(true);
@@ -26,6 +30,7 @@ export default function TripDetailPage() {
     try {
       const data = await getTrip(tripId);
       setTrip(data.trip);
+      setActualDistanceInput(data.trip.distance_km != null ? String(data.trip.distance_km) : '');
     } catch (err) {
       setError(err.message || 'Could not load trip details.');
     } finally {
@@ -52,6 +57,17 @@ export default function TripDetailPage() {
     setSelectedCheckpointIds((current) => current.includes(checkpointId)
       ? current.filter((id) => id !== checkpointId)
       : [...current, checkpointId]);
+  }
+
+  async function saveActualDistance(event) {
+    event.preventDefault();
+    setSavingDistance(true); setDistanceMessage(''); setDistanceError('');
+    try {
+      await updateTripDistance(tripId, actualDistanceInput.trim() === '' ? null : Number(actualDistanceInput));
+      setDistanceMessage('Actual distance saved. Fuel estimate updated.');
+      await load();
+    } catch (err) { setDistanceError(err.message || 'Could not save actual distance.'); }
+    finally { setSavingDistance(false); }
   }
 
   async function changeStatus(status, options = {}) {
@@ -144,9 +160,28 @@ export default function TripDetailPage() {
           <div className="detail-fields">
             <div><small>TRIP TYPE</small><strong>{trip.trip_type}</strong></div>
             <div><small>REQUEST ID</small><strong>REQ-{trip.request_id}</strong></div>
-            <div><small>DISTANCE</small><strong>{trip.distance_km != null ? `${trip.distance_km} km` : 'Not recorded'}</strong></div>
+            <div><small>PLANNED DISTANCE</small><strong>{trip.planned_distance_km != null ? `${Number(trip.planned_distance_km).toLocaleString()} km` : 'Not recorded'}</strong></div>
+            <div><small>ACTUAL DISTANCE</small><strong>{trip.distance_km != null ? `${Number(trip.distance_km).toLocaleString()} km` : 'Not recorded'}</strong></div>
             <div><small>REQUEST STATUS</small><strong>{trip.request_status}</strong></div>
           </div>
+        </article>
+
+        <article className="detail-card detail-wide fuel-estimate-card">
+          <h2><Truck size={18} /> Fuel estimate</h2>
+          <div className="fuel-estimate-values">
+            <div><small>ESTIMATED FUEL</small><strong>{trip.estimated_fuel_liters != null ? `${Number(trip.estimated_fuel_liters).toLocaleString(undefined, { maximumFractionDigits: 2 })} L` : 'Unavailable'}</strong></div>
+            <div><small>ESTIMATED COST</small><strong>{trip.estimated_fuel_cost != null ? `ETB ${Number(trip.estimated_fuel_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Unavailable'}</strong></div>
+            <div><small>EFFICIENCY</small><strong>{trip.fuel_efficiency_km_per_l != null ? `${Number(trip.fuel_efficiency_km_per_l).toLocaleString()} km/L` : 'Not set'}</strong></div>
+          </div>
+          <p className="fuel-estimate-note">{trip.estimate_distance_km != null ? `Based on ${Number(trip.estimate_distance_km).toLocaleString()} km ${trip.estimate_distance_source === 'actual' ? 'actual' : 'planned'} distance.` : 'Fuel estimate unavailable until a planned or actual distance is recorded.'} {trip.fuel_price_per_liter ? `${trip.fuel_price_source === 'fuel_log' ? 'Fuel price uses the latest positive price recorded in the fuel log for this fuel type' : 'Fuel price uses the configured default price'} (ETB ${Number(trip.fuel_price_per_liter).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/L).` : 'Cost is unavailable until a positive price is recorded in the fuel log or DEFAULT_FUEL_PRICE_PER_LITER is configured.'}</p>
+          {trip.status !== 'Cancelled' && <form className="actual-distance-form" onSubmit={saveActualDistance}>
+            <label htmlFor="actual-distance-km">Record actual distance (km)</label>
+            <input id="actual-distance-km" type="number" min="0.01" max="1000000" step="0.01" value={actualDistanceInput} onChange={(e) => setActualDistanceInput(e.target.value)} placeholder="Enter actual distance" />
+            <button type="submit" disabled={savingDistance}>{savingDistance ? 'Saving…' : 'Save actual distance'}</button>
+            <button type="button" className="actual-distance-clear" onClick={() => setActualDistanceInput('')} disabled={savingDistance || trip.distance_km == null}>Clear input</button>
+          </form>}
+          {distanceMessage && <p className="fuel-estimate-feedback success" role="status">{distanceMessage}</p>}
+          {distanceError && <p className="fuel-estimate-feedback error" role="alert">{distanceError}</p>}
         </article>
 
         <article className="detail-card">

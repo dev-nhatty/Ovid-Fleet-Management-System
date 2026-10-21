@@ -77,6 +77,7 @@ async function getVehicleDetails(req, res, next) {
           v.brand_name,
           v.model_name,
           v.model_year,
+          v.fuel_efficiency_km_per_l,
           v.status AS vehicle_status,
           vt.name AS vehicle_type,
           ft.name AS fuel_type,

@@ -6,7 +6,7 @@ const validStatuses = ['Active', 'Out of Service', 'Returned to Provider'];
 const parseId = (v) => positiveInt(v);
 
 const vehicleSelect = `
-  SELECT v.id, v.plate_number, v.brand_name, v.model_name, v.model_year,
+  SELECT v.id, v.plate_number, v.brand_name, v.model_name, v.model_year, v.fuel_efficiency_km_per_l,
          v.status AS vehicle_status, vt.id AS vehicle_type_id, vt.name AS vehicle_type,
          ft.id AS fuel_type_id, ft.name AS fuel_type,
          active_trip.trip_id AS current_trip_id,
@@ -83,6 +83,13 @@ function validate(body = {}, partial = false) {
     value.modelYear = raw === '' || raw === null || raw === undefined ? null : Number(raw);
     if (value.modelYear !== null && (!Number.isInteger(value.modelYear) || value.modelYear < 1900 || value.modelYear > 2100)) fields.modelYear = 'Enter a year between 1900 and 2100.';
   }
+  if (!partial || has('fuelEfficiencyKmPerL')) {
+    const raw = body.fuelEfficiencyKmPerL;
+    value.fuelEfficiencyKmPerL = raw === '' || raw === null || raw === undefined ? null : Number(raw);
+    if (value.fuelEfficiencyKmPerL === null || !Number.isFinite(value.fuelEfficiencyKmPerL) || value.fuelEfficiencyKmPerL <= 0 || value.fuelEfficiencyKmPerL > 100) {
+      fields.fuelEfficiencyKmPerL = 'Enter fuel efficiency greater than 0 and no more than 100 km/L.';
+    }
+  }
   for (const [key, label] of [['vehicleTypeId', 'vehicle type'], ['fuelTypeId', 'fuel type']]) {
     if (!partial || has(key)) {
       const raw = body[key]; value[key] = raw === '' || raw === null || raw === undefined ? null : positiveInt(raw);
@@ -103,8 +110,8 @@ async function createAdminVehicle(req, res, next) {
   const { fields, value } = validate(req.body);
   if (Object.keys(fields).length) return res.status(400).json({ error: 'Please correct the highlighted fields.', fields });
   try {
-    const { rows } = await pool.query(`INSERT INTO vehicles (plate_number, brand_name, model_name, model_year, vehicle_type_id, fuel_type_id, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [value.plateNumber, value.brandName, value.modelName, value.modelYear, value.vehicleTypeId, value.fuelTypeId, value.status]);
+    const { rows } = await pool.query(`INSERT INTO vehicles (plate_number, brand_name, model_name, model_year, fuel_efficiency_km_per_l, vehicle_type_id, fuel_type_id, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [value.plateNumber, value.brandName, value.modelName, value.modelYear, value.fuelEfficiencyKmPerL, value.vehicleTypeId, value.fuelTypeId, value.status]);
     const created = await pool.query(`${vehicleSelect} WHERE v.id=$1`, [rows[0].id]);
     res.status(201).json({ vehicle: created.rows[0] });
   } catch (err) {
@@ -119,7 +126,7 @@ async function updateAdminVehicle(req, res, next) {
   if (!id) return res.status(400).json({ error: 'Invalid vehicle ID.' });
   const { fields, value } = validate(req.body, true);
   if (Object.keys(fields).length) return res.status(400).json({ error: 'Please correct the highlighted fields.', fields });
-  const map = { plateNumber: 'plate_number', brandName: 'brand_name', modelName: 'model_name', modelYear: 'model_year', vehicleTypeId: 'vehicle_type_id', fuelTypeId: 'fuel_type_id', status: 'status' };
+  const map = { plateNumber: 'plate_number', brandName: 'brand_name', modelName: 'model_name', modelYear: 'model_year', fuelEfficiencyKmPerL: 'fuel_efficiency_km_per_l', vehicleTypeId: 'vehicle_type_id', fuelTypeId: 'fuel_type_id', status: 'status' };
   const entries = Object.keys(map).filter((key) => Object.hasOwn(value, key));
   if (!entries.length) return res.status(400).json({ error: 'No vehicle changes were supplied.' });
   try {

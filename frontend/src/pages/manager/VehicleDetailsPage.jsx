@@ -131,6 +131,13 @@ export default function VehicleDetailsPage() {
             </span>
           </div>
           <p>{vehicle.plate_number} <span>•</span> {vehicle.vehicle_type || 'Vehicle type not set'} <span>•</span> {vehicle.fuel_type || 'Fuel type not set'}</p>
+          <div className="vehicle-detail-efficiency" aria-label="Vehicle fuel efficiency">
+            <Fuel size={15} aria-hidden="true" />
+            <span>Fuel efficiency</span>
+            <strong>{vehicle.fuel_efficiency_km_per_l != null && Number(vehicle.fuel_efficiency_km_per_l) > 0
+              ? `${Number(vehicle.fuel_efficiency_km_per_l).toLocaleString([], { maximumFractionDigits: 2 })} km/L`
+              : 'Not set'}</strong>
+          </div>
         </div>
         {activeAssignment && (
           <div className="vehicle-detail-active">
