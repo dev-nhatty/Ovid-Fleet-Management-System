@@ -7,7 +7,7 @@ const parseId = (v) => positiveInt(v);
 
 const vehicleSelect = `
   SELECT v.id, v.plate_number, v.brand_name, v.model_name, v.model_year,
-         v.status AS vehicle_status, v.seat_capacity, vt.id AS vehicle_type_id, vt.name AS vehicle_type,
+         v.status AS vehicle_status, v.seat_capacity, v.fuel_efficiency_km_per_l, v.energy_consumption_kwh_per_100km, vt.id AS vehicle_type_id, vt.name AS vehicle_type,
          ft.id AS fuel_type_id, ft.name AS fuel_type,
          active_trip.trip_id AS current_trip_id,
          active_trip.driver_name AS current_driver,
@@ -94,6 +94,13 @@ function validate(body = {}, partial = false) {
     value.seatCapacity = raw === '' || raw === null || raw === undefined ? null : Number(raw);
     if ((!partial && value.seatCapacity === null) || (partial && has('seatCapacity') && value.seatCapacity === null) || (value.seatCapacity !== null && (!Number.isInteger(value.seatCapacity) || value.seatCapacity < 2 || value.seatCapacity > 100))) fields.seatCapacity = 'Enter total seat capacity (including driver) from 2 to 100.';
   }
+  for (const [key, label] of [['fuelEfficiencyKmPerL', 'Fuel efficiency'], ['energyConsumptionKwhPer100Km', 'Electric energy consumption']]) {
+    if (!partial || has(key)) {
+      const raw = body[key];
+      value[key] = raw === '' || raw === null || raw === undefined ? null : Number(raw);
+      if (value[key] !== null && (!Number.isFinite(value[key]) || value[key] <= 0 || value[key] > 1000)) fields[key] = `${label} must be greater than 0 and no more than 1000.`;
+    }
+  }
   if (!partial || has('status')) {
     value.status = body.status || 'Active';
     if (!validStatuses.includes(value.status)) fields.status = 'Choose a valid vehicle status.';
@@ -108,8 +115,8 @@ async function createAdminVehicle(req, res, next) {
   const { fields, value } = validate(req.body);
   if (Object.keys(fields).length) return res.status(400).json({ error: 'Please correct the highlighted fields.', fields });
   try {
-    const { rows } = await pool.query(`INSERT INTO vehicles (plate_number, brand_name, model_name, model_year, vehicle_type_id, fuel_type_id, seat_capacity, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [value.plateNumber, value.brandName, value.modelName, value.modelYear, value.vehicleTypeId, value.fuelTypeId, value.seatCapacity, value.status]);
+    const { rows } = await pool.query(`INSERT INTO vehicles (plate_number, brand_name, model_name, model_year, vehicle_type_id, fuel_type_id, seat_capacity, fuel_efficiency_km_per_l, energy_consumption_kwh_per_100km, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, [value.plateNumber, value.brandName, value.modelName, value.modelYear, value.vehicleTypeId, value.fuelTypeId, value.seatCapacity, value.fuelEfficiencyKmPerL, value.energyConsumptionKwhPer100Km, value.status]);
     const created = await pool.query(`${vehicleSelect} WHERE v.id=$1`, [rows[0].id]);
     res.status(201).json({ vehicle: created.rows[0] });
   } catch (err) {
@@ -124,7 +131,7 @@ async function updateAdminVehicle(req, res, next) {
   if (!id) return res.status(400).json({ error: 'Invalid vehicle ID.' });
   const { fields, value } = validate(req.body, true);
   if (Object.keys(fields).length) return res.status(400).json({ error: 'Please correct the highlighted fields.', fields });
-  const map = { plateNumber: 'plate_number', brandName: 'brand_name', modelName: 'model_name', modelYear: 'model_year', vehicleTypeId: 'vehicle_type_id', fuelTypeId: 'fuel_type_id', seatCapacity: 'seat_capacity', status: 'status' };
+  const map = { plateNumber: 'plate_number', brandName: 'brand_name', modelName: 'model_name', modelYear: 'model_year', vehicleTypeId: 'vehicle_type_id', fuelTypeId: 'fuel_type_id', seatCapacity: 'seat_capacity', fuelEfficiencyKmPerL: 'fuel_efficiency_km_per_l', energyConsumptionKwhPer100Km: 'energy_consumption_kwh_per_100km', status: 'status' };
   const entries = Object.keys(map).filter((key) => Object.hasOwn(value, key));
   if (!entries.length) return res.status(400).json({ error: 'No vehicle changes were supplied.' });
   try {

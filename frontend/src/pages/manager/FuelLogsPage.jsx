@@ -81,7 +81,7 @@ export default function FuelLogsPage() {
       <section className="fuel-table-card">
         <div className="fuel-table-wrap">
           <table className="fuel-table">
-            <thead><tr><th>DATE &amp; TIME</th><th>REFERENCE</th><th>VEHICLE</th><th>FUEL TYPE</th><th>VOLUME</th><th>RECORDED BY</th></tr></thead>
+            <thead><tr><th>DATE &amp; TIME</th><th>REFERENCE</th><th>VEHICLE</th><th>FUEL TYPE</th><th>QUANTITY</th><th>RECORDED BY</th></tr></thead>
             <tbody>
               {loading ? <tr><td colSpan="6" className="fuel-empty">Loading fuel transactions…</td></tr>
                 : data.transactions.length === 0 ? <tr><td colSpan="6" className="fuel-empty">No fuel transactions match these filters.</td></tr>
@@ -91,7 +91,7 @@ export default function FuelLogsPage() {
                       <td><span className={`fuel-reference ${item.status === 'Flagged' ? 'is-flagged' : ''}`}>{item.transaction_ref}</span>{item.status !== 'Recorded' && <small className={`fuel-status fuel-status-${item.status.toLowerCase()}`}>{item.status}</small>}</td>
                       <td><div className="fuel-vehicle-name">{getVehicleName(item)}</div><small>{item.plate_number}</small></td>
                       <td>{item.fuel_type || '—'}</td>
-                      <td className="fuel-volume">{number(item.liters)} L</td>
+                      <td className="fuel-volume">{number(item.quantity ?? item.liters)} {item.quantity_unit || 'L'}</td>
                       <td><div className="fuel-person"><span className="fuel-avatar">{String(item.recorded_by || '?').split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase()}</span><span>{item.recorded_by || '—'}</span></div></td>
                     </tr>
                   ))}

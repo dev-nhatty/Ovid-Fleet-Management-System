@@ -5,7 +5,7 @@ import { createAdminVehicle, getAdminVehicle, getAdminVehicleOptions, listAdminV
 import './vehicles-page.css';
 
 const PAGE_SIZE = 6;
-const blankForm = { plateNumber: '', brandName: '', modelName: '', modelYear: '', vehicleTypeId: '', fuelTypeId: '', seatCapacity: '', status: 'Active' };
+const blankForm = { plateNumber: '', brandName: '', modelName: '', modelYear: '', vehicleTypeId: '', fuelTypeId: '', seatCapacity: '', fuelEfficiencyKmPerL: '', energyConsumptionKwhPer100Km: '', status: 'Active' };
 const titleFor = (v) => [v.brand_name, v.model_name, v.model_year].filter(Boolean).join(' ') || 'Unnamed vehicle';
 const plate = (v) => v.plate_number || 'No plate';
 const initials = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
@@ -16,9 +16,11 @@ function VehicleForm({ initial, options, onSave, onClose }) {
   const [form, setForm] = useState(() => ({ ...blankForm, ...(initial ? {
     plateNumber: initial.plate_number || '', brandName: initial.brand_name || '', modelName: initial.model_name || '',
     modelYear: initial.model_year ? String(initial.model_year) : '', vehicleTypeId: initial.vehicle_type_id ? String(initial.vehicle_type_id) : '',
-    fuelTypeId: initial.fuel_type_id ? String(initial.fuel_type_id) : '', seatCapacity: initial.seat_capacity != null ? String(initial.seat_capacity) : '', status: initial.vehicle_status || 'Active',
+    fuelTypeId: initial.fuel_type_id ? String(initial.fuel_type_id) : '', seatCapacity: initial.seat_capacity != null ? String(initial.seat_capacity) : '', fuelEfficiencyKmPerL: initial.fuel_efficiency_km_per_l != null ? String(initial.fuel_efficiency_km_per_l) : '', energyConsumptionKwhPer100Km: initial.energy_consumption_kwh_per_100km != null ? String(initial.energy_consumption_kwh_per_100km) : '', status: initial.vehicle_status || 'Active',
   } : {}) }));
   const [errors, setErrors] = useState({}); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  const selectedFuelType = options.fuelTypes.find((item) => String(item.id) === String(form.fuelTypeId))?.name || '';
+  const isElectric = /electric|ev|battery/i.test(selectedFuelType);
   const change = (key, value) => { setForm((f) => ({ ...f, [key]: value })); setErrors((e) => ({ ...e, [key]: '' })); };
   async function submit(e) {
     e.preventDefault();
@@ -30,9 +32,12 @@ function VehicleForm({ initial, options, onSave, onClose }) {
     if (!form.fuelTypeId) next.fuelTypeId = 'Choose a fuel type.';
     if (!Number.isInteger(Number(form.seatCapacity)) || Number(form.seatCapacity) < 2 || Number(form.seatCapacity) > 100) next.seatCapacity = 'Enter total seats including driver (2–100).';
     if (form.modelYear && (!/^\d{4}$/.test(form.modelYear) || Number(form.modelYear) < 1900 || Number(form.modelYear) > 2100)) next.modelYear = 'Enter a year between 1900 and 2100.';
+    const efficiencyKey = isElectric ? 'energyConsumptionKwhPer100Km' : 'fuelEfficiencyKmPerL';
+    const efficiencyValue = form[efficiencyKey];
+    if (efficiencyValue !== '' && (!Number.isFinite(Number(efficiencyValue)) || Number(efficiencyValue) <= 0 || Number(efficiencyValue) > 1000)) next[efficiencyKey] = 'Enter a value greater than 0 and no more than 1000.';
     if (Object.keys(next).length) { setErrors(next); return; }
     setSaving(true); setError('');
-    try { await onSave({ ...form, modelYear: form.modelYear || null, vehicleTypeId: Number(form.vehicleTypeId), fuelTypeId: Number(form.fuelTypeId), seatCapacity: Number(form.seatCapacity) }); }
+    try { await onSave({ ...form, modelYear: form.modelYear || null, vehicleTypeId: Number(form.vehicleTypeId), fuelTypeId: Number(form.fuelTypeId), seatCapacity: Number(form.seatCapacity), fuelEfficiencyKmPerL: isElectric ? null : (form.fuelEfficiencyKmPerL === '' ? null : Number(form.fuelEfficiencyKmPerL)), energyConsumptionKwhPer100Km: isElectric ? (form.energyConsumptionKwhPer100Km === '' ? null : Number(form.energyConsumptionKwhPer100Km)) : null }); }
     catch (err) { setError(err.message || 'Could not save vehicle.'); if (err.fields) setErrors(err.fields); }
     finally { setSaving(false); }
   }
@@ -48,6 +53,7 @@ function VehicleForm({ initial, options, onSave, onClose }) {
       <label className="avp-field"><span>Vehicle Type <b>*</b></span><select value={form.vehicleTypeId} onChange={(e) => change('vehicleTypeId', e.target.value)}><option value="">Select vehicle type</option>{options.vehicleTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{errors.vehicleTypeId && <small>{errors.vehicleTypeId}</small>}</label>
       <label className="avp-field"><span>Total Seat Capacity <b>*</b></span><input type="number" min="2" max="100" step="1" value={form.seatCapacity} onChange={(e) => change('seatCapacity', e.target.value)} placeholder="Includes driver's seat"/>{errors.seatCapacity && <small>{errors.seatCapacity}</small>}<em>Includes one reserved seat for the driver.</em></label>
       <label className="avp-field avp-field--full"><span>Fuel Type <b>*</b></span><select value={form.fuelTypeId} onChange={(e) => change('fuelTypeId', e.target.value)}><option value="">Select fuel type</option>{options.fuelTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{errors.fuelTypeId && <small>{errors.fuelTypeId}</small>}<em>Options come from the existing vehicle and fuel type records.</em></label>
+      {isElectric ? <label className="avp-field avp-field--full"><span>Electric energy consumption (kWh/100 km)</span><input type="number" min="0.01" max="1000" step="0.01" value={form.energyConsumptionKwhPer100Km} onChange={(e) => change('energyConsumptionKwhPer100Km', e.target.value)} placeholder="e.g. 18"/>{errors.energyConsumptionKwhPer100Km && <small>{errors.energyConsumptionKwhPer100Km}</small>}<em>Used to estimate electricity consumed for a planned trip. No charging cost is calculated.</em></label> : <label className="avp-field avp-field--full"><span>Fuel efficiency (km/L)</span><input type="number" min="0.01" max="1000" step="0.01" value={form.fuelEfficiencyKmPerL} onChange={(e) => change('fuelEfficiencyKmPerL', e.target.value)} placeholder="e.g. 8.5"/>{errors.fuelEfficiencyKmPerL && <small>{errors.fuelEfficiencyKmPerL}</small>}<em>Used to estimate fuel consumed for a planned trip.</em></label>}
     </div><div className="avp-modal-actions"><button type="button" className="btn btn--soft" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="btn btn--primary" disabled={saving}>{saving ? 'Saving…' : initial ? 'Save Changes' : 'Register Vehicle'}</button></div></form>
   </section></div>;
 }
@@ -56,7 +62,7 @@ function VehicleDetails({ data, onClose, onEdit }) {
   if (!data) return null; const v = data.vehicle;
   return <div className="avp-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><section className="avp-modal avp-modal--details" role="dialog" aria-modal="true" aria-labelledby="avp-detail-title">
     <div className="avp-modal-head"><div><span className="avp-eyebrow">VEHICLE DETAILS</span><h2 id="avp-detail-title">{titleFor(v)}</h2><p>{plate(v)}</p></div><button className="avp-icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button></div>
-    <div className="avp-detail-grid"><div><span>Vehicle type</span><strong>{v.vehicle_type || 'Not specified'}</strong></div><div><span>Total seat capacity</span><strong>{v.seat_capacity == null ? 'Not recorded' : `${v.seat_capacity} seats (including driver)`}</strong></div><div><span>Fuel type</span><strong>{v.fuel_type || 'Not specified'}</strong></div><div><span>Current driver</span><strong>{v.current_driver || 'Not assigned'}</strong></div><div><span>Status</span><StatusBadge tone={badgeTone(displayStatus(v))}>{displayStatus(v)}</StatusBadge></div></div>
+    <div className="avp-detail-grid"><div><span>Vehicle type</span><strong>{v.vehicle_type || 'Not specified'}</strong></div><div><span>Total seat capacity</span><strong>{v.seat_capacity == null ? 'Not recorded' : `${v.seat_capacity} seats (including driver)`}</strong></div><div><span>Fuel type</span><strong>{v.fuel_type || 'Not specified'}</strong></div><div><span>{/electric|\bev\b|battery/i.test(String(v.fuel_type || '')) ? 'Energy consumption' : 'Fuel efficiency'}</span><strong>{/electric|\bev\b|battery/i.test(String(v.fuel_type || '')) ? (v.energy_consumption_kwh_per_100km != null ? `${Number(v.energy_consumption_kwh_per_100km).toLocaleString([], { maximumFractionDigits: 2 })} kWh/100 km` : 'Not set') : (v.fuel_efficiency_km_per_l != null ? `${Number(v.fuel_efficiency_km_per_l).toLocaleString([], { maximumFractionDigits: 2 })} km/L` : 'Not set')}</strong></div><div><span>Current driver</span><strong>{v.current_driver || 'Not assigned'}</strong></div><div><span>Status</span><StatusBadge tone={badgeTone(displayStatus(v))}>{displayStatus(v)}</StatusBadge></div></div>
     <div className="avp-detail-section"><div className="avp-detail-title"><h3>Trip history</h3><span>Latest 10 records</span></div><div className="avp-history-scroll"><table className="avp-history"><thead><tr><th>TRIP</th><th>DESTINATION</th><th>DRIVER</th><th>STATUS</th></tr></thead><tbody>{data.trips?.length ? data.trips.map((t) => <tr key={t.id}><td>TRP-{String(t.id).padStart(4, '0')}</td><td>{t.destination}</td><td>{t.driver_name}</td><td>{t.status}</td></tr>) : <tr><td colSpan="4" className="avp-empty-cell">No trip history recorded.</td></tr>}</tbody></table></div></div>
     <div className="avp-detail-section"><div className="avp-detail-title"><h3>Fuel history</h3><span>Latest 10 records</span></div><div className="avp-history-scroll"><table className="avp-history"><thead><tr><th>REFERENCE</th><th>DATE</th><th>FUEL TYPE</th><th>QUANTITY</th></tr></thead><tbody>{data.fuelLogs?.length ? data.fuelLogs.map((f) => <tr key={f.id}><td>{f.transaction_ref}</td><td>{f.fueled_date ? new Date(`${f.fueled_date}T00:00:00`).toLocaleDateString() : '—'}</td><td>{f.fuel_type || '—'}</td><td>{Number(f.liters).toLocaleString()} L</td></tr>) : <tr><td colSpan="4" className="avp-empty-cell">No fuel history recorded.</td></tr>}</tbody></table></div></div>
     <div className="avp-modal-actions"><button className="btn btn--soft" onClick={onClose}>Close</button><button className="btn btn--primary" onClick={() => onEdit(v)}>Edit Vehicle</button></div>

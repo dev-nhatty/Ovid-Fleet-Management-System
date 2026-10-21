@@ -123,6 +123,12 @@ export default function AssignTripPage() {
   const vehicleDisplayName = getVehicleName
   const selectedDriverInfo = data.drivers.find((driver) => String(driver.id) === selectedDriver);
   const unavailableRequest = request.status !== 'Pending';
+  const plannedDistanceKm = Number(request.planned_distance_km);
+  const hasPlannedDistance = Number.isFinite(plannedDistanceKm) && plannedDistanceKm > 0;
+  const selectedFuelName = String(selectedVehicleInfo?.fuel_type || '');
+  const selectedIsElectric = /electric|\bev\b|battery/i.test(selectedFuelName);
+  const estimatedFuelLiters = hasPlannedDistance && Number(selectedVehicleInfo?.fuel_efficiency_km_per_l) > 0 ? plannedDistanceKm / Number(selectedVehicleInfo.fuel_efficiency_km_per_l) : null;
+  const estimatedElectricKwh = hasPlannedDistance && Number(selectedVehicleInfo?.energy_consumption_kwh_per_100km) > 0 ? plannedDistanceKm * Number(selectedVehicleInfo.energy_consumption_kwh_per_100km) / 100 : null;
 
   return (
     <div className="assign-page">
@@ -135,7 +141,7 @@ export default function AssignTripPage() {
         <span className="assign-summary-dot">•</span><span>{request.department || 'No department'}</span>
         <span className="assign-summary-dot">•</span><span className="assign-summary-destination"><MapPin size={16} /> Destination: {request.destination}</span>
         <span className="assign-summary-dot">•</span><span className="assign-type-chip">{tripTypeLabel(request.trip_type)}</span>
-        <span className="assign-summary-dot">•</span><span className="assign-passenger-chip">{1 + Number(request.additional_passenger_count || 0)} passenger seats needed ({Number(request.additional_passenger_count || 0)} additional)</span>
+        <span className="assign-summary-dot">•</span><span className="assign-passenger-chip">{1 + Number(request.additional_passenger_count || 0)} passenger seats needed ({Number(request.additional_passenger_count || 0)} additional)</span>{hasPlannedDistance && <><span className="assign-summary-dot">•</span><span>{plannedDistanceKm.toLocaleString()} km planned</span></>}
       </section>
 
       {error && <div className="assign-alert" role="alert">{error}</div>}
@@ -177,6 +183,8 @@ export default function AssignTripPage() {
           </div>
         )}
       </section>
+
+      {selectedVehicleInfo && <section className="assign-card" style={{ marginTop: 16, padding: 18 }}><div className="assign-card-title"><div><h2>Estimated energy consumption</h2><p>Based on the planned distance and the selected vehicle's registered efficiency. Estimates exclude reserve, terrain, traffic, and driving-style variation.</p></div></div>{!hasPlannedDistance ? <p className="assign-table-context">Enter a planned distance in the trip request to calculate estimated consumption.</p> : selectedIsElectric ? (estimatedElectricKwh == null ? <p className="assign-table-context">Electric energy consumption is not recorded for this vehicle.</p> : <><div className="assign-table-context"><strong>Normal charging:</strong> approximately {estimatedElectricKwh.toLocaleString(undefined, { maximumFractionDigits: 2 })} kWh</div><div className="assign-table-context"><strong>Fast charging:</strong> approximately {estimatedElectricKwh.toLocaleString(undefined, { maximumFractionDigits: 2 })} kWh</div><p className="assign-table-context">These are the same estimated trip energy requirement. Charging speed and charging losses are not modeled, and no charging cost is calculated.</p></>) : <div className="assign-table-context"><strong>Fuel:</strong> {estimatedFuelLiters == null ? 'Fuel efficiency not recorded for this vehicle.' : `approximately ${estimatedFuelLiters.toLocaleString(undefined, { maximumFractionDigits: 2 })} L for ${plannedDistanceKm.toLocaleString()} km.`}</div>}</section>}
 
       {request.checkpoints?.length > 0 && <section className="assign-card assign-checkpoints"><div className="assign-card-title"><div><h2><GitFork size={17} /> Route checkpoints</h2><p>{request.checkpoints.length} intermediate stop{request.checkpoints.length === 1 ? '' : 's'}</p></div><Route size={18} /></div><ol>{request.checkpoints.map((stop) => <li key={stop.id || stop.sequenceOrder}><span>{stop.sequenceOrder}</span>{stop.location}</li>)}</ol></section>}
 

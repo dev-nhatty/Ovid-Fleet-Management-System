@@ -15,6 +15,7 @@ const blankForm = {
   destination: '',
   checkpoints: [],
   additionalPassengerCount: '0',
+  plannedDistanceKm: '',
 };
 
 
@@ -108,6 +109,8 @@ export default function NewRequestPage() {
     if (form.origin.trim().length > 255) { setFields({ origin: 'Origin must be 255 characters or fewer.' }); setError('Please correct the highlighted fields.'); return; }
     if (form.tripType !== 'With Checkpoints' && !form.destination.trim()) { setFields({ destination: 'Destination is required.' }); setError('Please enter a destination.'); return; }
     const additionalPassengerCount = Number(form.additionalPassengerCount);
+    const plannedDistanceKm = form.plannedDistanceKm === '' ? null : Number(form.plannedDistanceKm);
+    if (plannedDistanceKm !== null && (!Number.isFinite(plannedDistanceKm) || plannedDistanceKm <= 0 || plannedDistanceKm > 100000)) { setFields({ plannedDistanceKm: 'Enter a distance greater than 0 km and no more than 100,000 km.' }); setError('Please enter a valid planned trip distance.'); return; }
     if (!Number.isInteger(additionalPassengerCount) || additionalPassengerCount < 0 || additionalPassengerCount > 1000) { setFields({ additionalPassengerCount: 'Enter a whole number from 0 to 1000.' }); setError('Please enter a valid additional passenger count.'); return; }
     if (!form.employee) {
       setFields({ employeeId: 'Choose an employee from the directory.' });
@@ -119,6 +122,7 @@ export default function NewRequestPage() {
       const result = await createTripRequest({
         employeeId: form.employee.id,
         additionalPassengerCount,
+        plannedDistanceKm,
         origin: form.origin.trim(),
         tripType: form.tripType,
         destination: form.tripType === 'With Checkpoints' ? '' : form.destination.trim(),
@@ -208,6 +212,13 @@ export default function NewRequestPage() {
             <div className="request-input-wrap"><UserRoundSearch size={17} /><input id="additionalPassengerCount" type="number" min="0" max="1000" step="1" value={form.additionalPassengerCount} aria-invalid={Boolean(fields.additionalPassengerCount)} onChange={(e) => update('additionalPassengerCount', e.target.value)} /></div>
             <small>Enter the number of people travelling with the requester. The requester is counted separately.</small>
             {fields.additionalPassengerCount && <small className="request-field-error">{fields.additionalPassengerCount}</small>}
+          </div>
+
+          <div className="request-field request-field--wide">
+            <label htmlFor="plannedDistanceKm">PLANNED DISTANCE (KM)</label>
+            <div className="request-input-wrap"><Route size={17} /><input id="plannedDistanceKm" type="number" min="0.1" max="100000" step="0.1" value={form.plannedDistanceKm} aria-invalid={Boolean(fields.plannedDistanceKm)} placeholder="Enter estimated route distance" onChange={(e) => update('plannedDistanceKm', e.target.value)} /></div>
+            <small>Optional. Used to estimate fuel or electricity consumption during assignment.</small>
+            {fields.plannedDistanceKm && <small className="request-field-error">{fields.plannedDistanceKm}</small>}
           </div>
 
           <div className="request-field request-field--wide">

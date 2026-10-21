@@ -63,11 +63,13 @@ async function createTripRequest(req, res, next) {
   const destination = str(body.destination);
   const tripType = body.tripType;
   const additionalPassengerCount = body.additionalPassengerCount === '' || body.additionalPassengerCount == null ? 0 : Number(body.additionalPassengerCount);
+  const plannedDistanceKm = body.plannedDistanceKm === '' || body.plannedDistanceKm == null ? null : Number(body.plannedDistanceKm);
   const checkpoints = Array.isArray(body.checkpoints) ? body.checkpoints : [];
   const fields = {};
 
   if (!employeeId) fields.employeeId = 'Choose an employee from the directory.';
   if (!Number.isInteger(additionalPassengerCount) || additionalPassengerCount < 0 || additionalPassengerCount > 1000) fields.additionalPassengerCount = 'Enter a whole number from 0 to 1000.';
+  if (plannedDistanceKm !== null && (!Number.isFinite(plannedDistanceKm) || plannedDistanceKm <= 0 || plannedDistanceKm > 100000)) fields.plannedDistanceKm = 'Enter a distance greater than 0 km and no more than 100,000 km.';
   if (!origin) fields.origin = 'Origin is required.';
   else if (origin.length > 255) fields.origin = 'Origin must be 255 characters or fewer.';
   if (tripType !== 'With Checkpoints' && !destination) fields.destination = 'Destination is required.';
@@ -107,10 +109,10 @@ async function createTripRequest(req, res, next) {
 
     const inserted = await client.query(
       `INSERT INTO trip_requests
-        (employee_id, origin, destination, trip_type, additional_passenger_count, status, recorded_by_user_id)
-       VALUES ($1, $2, $3, $4, $5, 'Pending', $6)
-       RETURNING id, employee_id, origin, destination, trip_type, additional_passenger_count, status, requested_at, recorded_by_user_id`,
-      [employeeId, origin, tripType === 'With Checkpoints' ? null : destination, tripType, additionalPassengerCount, req.user.id]
+        (employee_id, origin, destination, trip_type, additional_passenger_count, planned_distance_km, status, recorded_by_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'Pending', $7)
+       RETURNING id, employee_id, origin, destination, trip_type, additional_passenger_count, planned_distance_km, status, requested_at, recorded_by_user_id`,
+      [employeeId, origin, tripType === 'With Checkpoints' ? null : destination, tripType, additionalPassengerCount, plannedDistanceKm, req.user.id]
     );
     const request = inserted.rows[0];
     for (let i = 0; i < normalizedStops.length; i++) {

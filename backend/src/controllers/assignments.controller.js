@@ -12,7 +12,7 @@ async function getAssignmentDetails(req, res, next) {
   try {
     const requestResult = await pool.query(
       `SELECT tr.id, tr.employee_id, e.name AS employee_name, d.name AS department,
-              tr.additional_passenger_count, tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
+              tr.additional_passenger_count, tr.planned_distance_km, tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
               COALESCE(json_agg(json_build_object('id', tc.id, 'location', tc.location,
                 'sequenceOrder', tc.sequence_order) ORDER BY tc.sequence_order)
                 FILTER (WHERE tc.id IS NOT NULL), '[]') AS checkpoints,
@@ -30,7 +30,7 @@ async function getAssignmentDetails(req, res, next) {
 
     const [vehiclesResult, driversResult, pendingResult] = await Promise.all([
       pool.query(
-        `SELECT v.id, v.plate_number, v.status, v.brand_name, v.model_name, v.model_year, v.seat_capacity, vt.name AS vehicle_type,
+        `SELECT v.id, v.plate_number, v.status, v.brand_name, v.model_name, v.model_year, v.seat_capacity, v.fuel_efficiency_km_per_l, v.energy_consumption_kwh_per_100km, vt.name AS vehicle_type,
                 ft.name AS fuel_type
            FROM vehicles v
            LEFT JOIN vehicle_types vt ON vt.id = v.vehicle_type_id

@@ -17,7 +17,7 @@ const vehicleLabel = (vehicle) => vehicle
 export default function RecordFuelPage() {
   const navigate = useNavigate();
   const [options, setOptions] = useState({ vehicles: [], fuelTypes: [] });
-  const [form, setForm] = useState({ vehicleId: '', fuelTypeId: '', fueledDate: today(), liters: '', pricePerLiter: '' });
+  const [form, setForm] = useState({ vehicleId: '', fuelTypeId: '', fueledDate: today(), liters: '', pricePerLiter: '', kwh: '', pricePerKwh: '' });
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
@@ -36,10 +36,15 @@ export default function RecordFuelPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const selectedFuelType = options.fuelTypes.find(f => String(f.id) === form.fuelTypeId);
+  const isElectric = /electric/i.test(selectedFuelType?.name || '');
   const total = useMemo(() => {
-    const liters = Number(form.liters), price = Number(form.pricePerLiter);
-    return form.liters !== '' && form.pricePerLiter !== '' && liters > 0 && price >= 0 ? liters * price : 0;
-  }, [form.liters, form.pricePerLiter]);
+    const quantity = Number(isElectric ? form.kwh : form.liters);
+    const price = Number(isElectric ? form.pricePerKwh : form.pricePerLiter);
+    const quantityText = isElectric ? form.kwh : form.liters;
+    const priceText = isElectric ? form.pricePerKwh : form.pricePerLiter;
+    return quantityText !== '' && priceText !== '' && quantity > 0 && price >= 0 ? quantity * price : 0;
+  }, [form.liters, form.pricePerLiter, form.kwh, form.pricePerKwh, isElectric]);
   const selected = options.vehicles.find(v => String(v.id) === form.vehicleId);
   const filteredVehicles = useMemo(() => {
     const query = vehicleQuery.trim().toLowerCase();
@@ -65,23 +70,26 @@ export default function RecordFuelPage() {
 
   async function submit(e) {
     e.preventDefault(); setError(''); setSuccess('');
-    if (!form.vehicleId || !form.fuelTypeId || !form.fueledDate || form.liters === '' || form.pricePerLiter === '') {
-      setError('Complete all required fields before recording fuel.'); return;
+    const quantityText = isElectric ? form.kwh : form.liters;
+    const priceText = isElectric ? form.pricePerKwh : form.pricePerLiter;
+    if (!form.vehicleId || !form.fuelTypeId || !form.fueledDate || quantityText === '' || priceText === '') {
+      setError('Complete all required fields before recording this transaction.'); return;
     }
-    if (Number(form.liters) <= 0 || Number(form.pricePerLiter) < 0) {
-      setError('Quantity must be greater than zero and price cannot be negative.'); return;
+    if (Number(quantityText) <= 0 || Number(priceText) < 0) {
+      setError(isElectric ? 'Energy must be greater than zero and price per kWh cannot be negative.' : 'Quantity must be greater than zero and price per liter cannot be negative.'); return;
     }
     setSaving(true);
     try {
-      const result = await createFuelTransaction({ vehicleId: Number(form.vehicleId), fuelTypeId: Number(form.fuelTypeId), fueledDate: form.fueledDate, liters: Number(form.liters), pricePerLiter: Number(form.pricePerLiter) });
-      setSuccess(`Fuel transaction ${result.transaction.transaction_ref} recorded successfully.`);
-      setForm(old => ({ ...old, liters: '', pricePerLiter: '' }));
+      const payload = { vehicleId: Number(form.vehicleId), fuelTypeId: Number(form.fuelTypeId), fueledDate: form.fueledDate, ...(isElectric ? { kwh: Number(form.kwh), pricePerKwh: Number(form.pricePerKwh) } : { liters: Number(form.liters), pricePerLiter: Number(form.pricePerLiter) }) };
+      const result = await createFuelTransaction(payload);
+      setSuccess(`${isElectric ? 'Charging' : 'Fuel'} transaction ${result.transaction.transaction_ref} recorded successfully.`);
+      setForm(old => ({ ...old, liters: '', pricePerLiter: '', kwh: '', pricePerKwh: '' }));
     } catch (err) { setError(err.message || 'Could not record this fuel transaction.'); }
     finally { setSaving(false); }
   }
   function clearForm() {
     const firstVehicle = options.vehicles[0];
-    setForm({ vehicleId: String(firstVehicle?.id || ''), fuelTypeId: String(options.fuelTypes[0]?.id || ''), fueledDate: today(), liters: '', pricePerLiter: '' });
+    setForm({ vehicleId: String(firstVehicle?.id || ''), fuelTypeId: String(options.fuelTypes[0]?.id || ''), fueledDate: today(), liters: '', pricePerLiter: '', kwh: '', pricePerKwh: '' });
     setVehicleQuery(vehicleLabel(firstVehicle));
     setVehiclePickerOpen(false);
     setError(''); setSuccess('');
@@ -89,7 +97,7 @@ export default function RecordFuelPage() {
 
   return <main className="record-fuel-page">
     <form className="record-fuel-card" onSubmit={submit}>
-      <header className="record-fuel-heading"><h1>Record Fuel</h1><p>Enter fuel intake details for registered fleet vehicles.</p></header>
+      <header className="record-fuel-heading"><h1>{isElectric ? 'Record Charging' : 'Record Fuel'}</h1><p>{isElectric ? 'Enter electricity consumed and charging cost for a registered electric vehicle.' : 'Enter fuel intake details for registered fleet vehicles.'}</p></header>
       {error && <div className="record-fuel-alert" role="alert"><AlertCircle size={17}/>{error}</div>}
       {success && <div className="record-fuel-success" role="status"><CheckCircle2 size={17}/><span>{success}</span><button type="button" onClick={() => navigate('/manager/fuel-logs')}>View fuel logs</button></div>}
       <div className="record-fuel-field record-fuel-vehicle-picker">
@@ -145,22 +153,27 @@ export default function RecordFuelPage() {
         {!options.vehicles.length && !loading && <small className="record-fuel-vehicle-help">No active vehicles are available.</small>}
       </div>
       <div className="record-fuel-grid">
-        <div className="record-fuel-field"><label htmlFor="rf-type">Fuel Type <b>*</b></label><select id="rf-type" value={form.fuelTypeId} onChange={e => update('fuelTypeId',e.target.value)} required disabled={loading || !options.fuelTypes.length}>
+        <div className="record-fuel-field"><label htmlFor="rf-type">{isElectric ? 'Energy Type' : 'Fuel Type'} <b>*</b></label><select id="rf-type" value={form.fuelTypeId} onChange={e => { update('fuelTypeId',e.target.value); setForm(old => ({ ...old, fuelTypeId: e.target.value, liters: '', pricePerLiter: '', kwh: '', pricePerKwh: '' })); }} required disabled={loading || !options.fuelTypes.length}>
           {!options.fuelTypes.length && <option value="">No fuel types available</option>}
           {options.fuelTypes.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select></div>
         <div className="record-fuel-field"><label htmlFor="rf-date">Fueling Date <b>*</b></label><input id="rf-date" type="date" max={today()} value={form.fueledDate} onChange={e => update('fueledDate',e.target.value)} required/></div>
-        <div className="record-fuel-field"><label htmlFor="rf-liters">Quantity (Liters) <b>*</b></label><input id="rf-liters" type="number" min="0.01" step="0.01" placeholder="e.g. 45.50" value={form.liters} onChange={e => update('liters',e.target.value)} required/></div>
-        <div className="record-fuel-field"><label htmlFor="rf-price">Price per Liter <b>*</b></label><input id="rf-price" type="number" min="0" step="0.01" placeholder="e.g. 120.00" value={form.pricePerLiter} onChange={e => update('pricePerLiter',e.target.value)} required/></div>
+        {isElectric ? <>
+          <div className="record-fuel-field"><label htmlFor="rf-kwh">Energy Charged (kWh) <b>*</b></label><input id="rf-kwh" type="number" min="0.01" step="0.01" placeholder="e.g. 42.50" value={form.kwh} onChange={e => update('kwh',e.target.value)} required/></div>
+          <div className="record-fuel-field"><label htmlFor="rf-price-kwh">Price per kWh (ETB) <b>*</b></label><input id="rf-price-kwh" type="number" min="0" step="0.01" placeholder="e.g. 8.50" value={form.pricePerKwh} onChange={e => update('pricePerKwh',e.target.value)} required/></div>
+        </> : <>
+          <div className="record-fuel-field"><label htmlFor="rf-liters">Quantity (Liters) <b>*</b></label><input id="rf-liters" type="number" min="0.01" step="0.01" placeholder="e.g. 45.50" value={form.liters} onChange={e => update('liters',e.target.value)} required/></div>
+          <div className="record-fuel-field"><label htmlFor="rf-price">Price per Liter (ETB) <b>*</b></label><input id="rf-price" type="number" min="0" step="0.01" placeholder="e.g. 120.00" value={form.pricePerLiter} onChange={e => update('pricePerLiter',e.target.value)} required/></div>
+        </>}
       </div>
-      <section className="record-fuel-total"><span>Estimated Total Cost</span><strong>{money(total)}</strong><small>{money(Number(form.liters)||0)} liters × {money(Number(form.pricePerLiter)||0)} per liter</small></section>
+      <section className="record-fuel-total"><span>Estimated Total {isElectric ? 'Charging Cost' : 'Fuel Cost'}</span><strong>{money(total)} ETB</strong><small>{isElectric ? `${money(Number(form.kwh)||0)} kWh × ${money(Number(form.pricePerKwh)||0)} per kWh` : `${money(Number(form.liters)||0)} liters × ${money(Number(form.pricePerLiter)||0)} per liter`}</small></section>
       <div className="record-fuel-field record-fuel-reference">
         <div className="record-fuel-reference-label"><label>Transaction Reference</label><span><LockKeyhole size={13}/> Auto-generated</span></div>
-        <div className="record-fuel-reference-value"><Hash size={17}/><code>FUEL-{form.fueledDate.slice(0,4) || new Date().getFullYear()}-AUTO</code></div>
-        <small>System-generated unique identifier for this fuel transaction.</small>
+        <div className="record-fuel-reference-value"><Hash size={17}/><code>{isElectric ? 'CHG' : 'FUEL'}-{form.fueledDate.slice(0,4) || new Date().getFullYear()}-AUTO</code></div>
+        <small>System-generated unique identifier for this {isElectric ? 'charging' : 'fuel'} transaction.</small>
       </div>
       {selected && <p className="record-fuel-selected">Selected vehicle: {getVehicleName(selected)} · {selected.plate_number}</p>}
-      <footer className="record-fuel-actions"><button type="button" className="record-fuel-clear" onClick={clearForm} disabled={saving}>Clear Form</button><button type="submit" className="record-fuel-submit" disabled={saving || loading || !options.vehicles.length || !options.fuelTypes.length}><Fuel size={16}/>{saving ? 'Recording...' : 'Record Fuel'}</button></footer>
+      <footer className="record-fuel-actions"><button type="button" className="record-fuel-clear" onClick={clearForm} disabled={saving}>Clear Form</button><button type="submit" className="record-fuel-submit" disabled={saving || loading || !options.vehicles.length || !options.fuelTypes.length}><Fuel size={16}/>{saving ? 'Recording...' : isElectric ? 'Record Charging' : 'Record Fuel'}</button></footer>
     </form>
   </main>;
 }

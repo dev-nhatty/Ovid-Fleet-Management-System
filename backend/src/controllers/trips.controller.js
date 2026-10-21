@@ -12,7 +12,7 @@ async function listTrips(req,res,next){
  const clause=where.length?`WHERE ${where.join(' AND ')}`:'';
  const base=` FROM trips t JOIN trip_requests tr ON tr.id=t.trip_request_id JOIN employees e ON e.id=tr.employee_id LEFT JOIN departments dep ON dep.id=e.department_id JOIN vehicles v ON v.id=t.vehicle_id JOIN users dr ON dr.id=t.driver_id`;
  try {const c=await pool.query(`SELECT COUNT(*)::int total${base} ${clause}`,params);const total=c.rows[0].total,pages=Math.max(1,Math.ceil(total/pageSize)),currentPage=Math.min(page,pages),i=params.length;
- const r=await pool.query(`SELECT t.id trip_id,tr.id request_id,e.name employee_name,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,v.plate_number,v.brand_name,v.model_name,v.model_year,dr.name driver_name,t.status,t.assigned_at,t.started_at,t.completed_at,t.distance_km,(SELECT COUNT(*)::int FROM trip_checkpoints tc WHERE tc.trip_request_id=tr.id) checkpoint_count ${base} ${clause} ORDER BY t.assigned_at DESC,t.id DESC LIMIT $${i+1} OFFSET $${i+2}`,[...params,pageSize,(currentPage-1)*pageSize]);
+ const r=await pool.query(`SELECT t.id trip_id,tr.id request_id,tr.additional_passenger_count,e.name employee_name,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,v.plate_number,v.brand_name,v.model_name,v.model_year,dr.name driver_name,t.status,t.assigned_at,t.started_at,t.completed_at,t.distance_km,(SELECT COUNT(*)::int FROM trip_checkpoints tc WHERE tc.trip_request_id=tr.id) checkpoint_count ${base} ${clause} ORDER BY t.assigned_at DESC,t.id DESC LIMIT $${i+1} OFFSET $${i+2}`,[...params,pageSize,(currentPage-1)*pageSize]);
  const s=await pool.query(`SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE status IN('Assigned','In Progress'))::int active,COUNT(*) FILTER(WHERE status='Completed' AND completed_at>=CURRENT_DATE)::int completed_today FROM trips`);
  const d=await pool.query(`SELECT DISTINCT name FROM departments ORDER BY name`);res.json({trips:r.rows,total,page:currentPage,pageSize,totalPages:pages,stats:s.rows[0],departments:d.rows.map(x=>x.name)});
  }catch(e){next(e);}}
@@ -20,7 +20,7 @@ async function getTrip(req, res, next) {
  if (!validId(req.params.tripId)) return res.status(400).json({ error: 'Invalid trip ID.' });
  try {
   const r = await pool.query(`SELECT t.id trip_id,tr.id request_id,t.status,t.assigned_at,t.started_at,t.completed_at,t.distance_km,
-    tr.planned_distance_km,tr.employee_id,e.name employee_name,e.phone employee_phone,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,
+    tr.planned_distance_km,tr.additional_passenger_count,tr.employee_id,e.name employee_name,e.phone employee_phone,dep.name department,tr.destination,tr.trip_type,tr.status request_status,tr.requested_at,
     v.id vehicle_id,v.plate_number,v.brand_name,v.model_name,v.model_year,v.fuel_efficiency_km_per_l,vt.name vehicle_type,v.status vehicle_status,
     dr.id driver_id,dr.name driver_name,dr.phone driver_phone,recorder.name recorded_by,
     (SELECT f.price_per_liter FROM fuel_transactions f WHERE f.fuel_type_id=v.fuel_type_id AND f.price_per_liter > 0 AND f.status IN ('Recorded', 'Verified') ORDER BY f.fueled_date DESC, f.recorded_at DESC, f.id DESC LIMIT 1) AS fuel_price_per_liter,
@@ -68,6 +68,7 @@ async function updateTripDistance(req, res, next) {
 async function updateTripStatus(req, res, next) {
  const tripId = Number(req.params.tripId);
  const nextStatus = req.body?.status;
+ const checkpointIds = req.body?.checkpointIds;
  if (!validId(tripId)) return res.status(400).json({ error: 'Invalid trip ID.' });
  if (!['In Progress', 'Completed', 'Cancelled'].includes(nextStatus)) {
   return res.status(400).json({ error: 'Choose a valid trip status.' });

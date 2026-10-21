@@ -131,13 +131,23 @@ export default function VehicleDetailsPage() {
             </span>
           </div>
           <p>{vehicle.plate_number} <span>•</span> {vehicle.vehicle_type || 'Vehicle type not set'} <span>•</span> {vehicle.fuel_type || 'Fuel type not set'}</p>
-          <div className="vehicle-detail-efficiency" aria-label="Vehicle fuel efficiency">
-            <Fuel size={15} aria-hidden="true" />
-            <span>Fuel efficiency</span>
-            <strong>{vehicle.fuel_efficiency_km_per_l != null && Number(vehicle.fuel_efficiency_km_per_l) > 0
-              ? `${Number(vehicle.fuel_efficiency_km_per_l).toLocaleString([], { maximumFractionDigits: 2 })} km/L`
-              : 'Not set'}</strong>
-          </div>
+          {/electric|\bev\b|battery/i.test(String(vehicle.fuel_type || '')) ? (
+            <div className="vehicle-detail-efficiency" aria-label="Electric energy consumption">
+              <Fuel size={15} aria-hidden="true" />
+              <span>Energy consumption</span>
+              <strong>{vehicle.energy_consumption_kwh_per_100km != null && Number(vehicle.energy_consumption_kwh_per_100km) > 0
+                ? `${Number(vehicle.energy_consumption_kwh_per_100km).toLocaleString([], { maximumFractionDigits: 2 })} kWh/100 km`
+                : 'Not set'}</strong>
+            </div>
+          ) : (
+            <div className="vehicle-detail-efficiency" aria-label="Vehicle fuel efficiency">
+              <Fuel size={15} aria-hidden="true" />
+              <span>Fuel efficiency</span>
+              <strong>{vehicle.fuel_efficiency_km_per_l != null && Number(vehicle.fuel_efficiency_km_per_l) > 0
+                ? `${Number(vehicle.fuel_efficiency_km_per_l).toLocaleString([], { maximumFractionDigits: 2 })} km/L`
+                : 'Not set'}</strong>
+            </div>
+          )}
         </div>
         {activeAssignment && (
           <div className="vehicle-detail-active">
@@ -177,7 +187,7 @@ export default function VehicleDetailsPage() {
 
       <section className="vehicle-detail-fuel">
         <div className="vehicle-detail-section-heading">
-          <h2>Fuel Log</h2>
+          <h2>Fuel &amp; Charging Log</h2>
           <span>{recentFuelLogs.length} {recentFuelLogs.length === 1 ? 'record' : 'records'}</span>
         </div>
         {recentFuelLogs.length ? (
@@ -187,7 +197,7 @@ export default function VehicleDetailsPage() {
                 <tr>
                   <th>Date</th>
                   <th>Fuel type</th>
-                  <th>Liters</th>
+                  <th>Quantity</th>
                   <th>Reference</th>
                   <th>Status</th>
                   <th>Recorded by</th>
@@ -198,7 +208,7 @@ export default function VehicleDetailsPage() {
                   <tr key={log.fuel_transaction_id}>
                     <td>{formatDate(log.fueled_date)}</td>
                     <td>{log.fuel_type || '—'}</td>
-                    <td>{Number(log.liters).toLocaleString([], { maximumFractionDigits: 2 })} L</td>
+                    <td>{Number(log.quantity ?? log.liters ?? 0).toLocaleString([], { maximumFractionDigits: 2 })} {log.quantity_unit || 'L'}</td>
                     <td>{log.transaction_ref || '—'}</td>
                     <td><span className={`vehicle-detail-fuel-status vehicle-detail-fuel-status--${String(log.fuel_status || 'recorded').toLowerCase()}`}>{log.fuel_status || 'Unknown'}</span></td>
                     <td>{log.recorded_by || '—'}</td>

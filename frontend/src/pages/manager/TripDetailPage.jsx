@@ -143,8 +143,6 @@ export default function TripDetailPage() {
           <div className="detail-destination"><MapPin size={20} /><div><small>DESTINATION</small><strong>{trip.destination}</strong></div></div>
           <div className="detail-fields">
             <div><small>TRIP TYPE</small><strong>{trip.trip_type}</strong></div>
-            <div><small>ADDITIONAL PASSENGERS</small><strong>{Number(trip.additional_passenger_count || 0)}</strong></div>
-            <div><small>TOTAL PASSENGER SEATS NEEDED</small><strong>{1 + Number(trip.additional_passenger_count || 0)}</strong></div>
             <div><small>VEHICLE PASSENGER SEATS</small><strong>{trip.seat_capacity == null ? 'Not recorded' : Math.max(0, Number(trip.seat_capacity) - 1)}</strong></div>
             {trip.capacity_override && <div><small>CAPACITY WARNING</small><strong>Override acknowledged at assignment</strong></div>}
             <div><small>REQUEST ID</small><strong>REQ-{trip.request_id}</strong></div>
@@ -156,7 +154,7 @@ export default function TripDetailPage() {
         <article className="detail-card">
           <h2><UserRound size={18} /> Employee</h2>
           <div className="detail-person"><span className="detail-avatar">{trip.employee_name?.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span><div><strong>{trip.employee_name}</strong><small>{trip.department || 'No department'}</small></div></div>
-          <div className="detail-fields one-col"><div><small>PHONE</small><strong>{trip.employee_phone || 'Not provided'}</strong></div><div><small>EMPLOYEE ID</small><strong>{trip.employee_id}</strong></div></div>
+          <div className="detail-fields one-col"><div><small>PHONE</small><strong>{trip.employee_phone || 'Not provided'}</strong></div><div><small>EMPLOYEE ID</small><strong>{trip.employee_id}</strong></div><div><small>ADDITIONAL PASSENGERS</small><strong>{Number(trip.additional_passenger_count ?? 0)}</strong></div></div>
         </article>
 
         <article className="detail-card">
