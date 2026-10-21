@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Flag, Truck, Search, MapPin, ArrowRight, ArrowLeftRight, GitFork } from 'lucide-react';
+import { Plus, Flag, Truck, Search, MapPin, ArrowRight, ArrowLeftRight, GitFork, CheckCircle2, X } from 'lucide-react';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import { listTripRequests } from '../../api/tripRequests.api.js';
@@ -18,7 +18,8 @@ function Status({ status }) {
 export default function DispatchQueuePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [notice, setNotice] = useState(location.state?.assignmentNotice || '');
+  const [notice, setNotice] = useState('');
+  const [highlightedRequestId, setHighlightedRequestId] = useState(null);
   const [requests, setRequests] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -44,12 +45,26 @@ export default function DispatchQueuePage() {
     return () => { cancelled = true; };
   }, [page, location.key]);
 
+  // Consume the one-time navigation state so refreshes do not replay the toast.
   useEffect(() => {
-    if (location.state?.assignmentNotice) {
-      setNotice(location.state.assignmentNotice);
-      navigate(location.pathname, { replace: true, state: null });
-    }
+    const state = location.state;
+    if (!state?.assignmentNotice) return;
+    setNotice(state.assignmentNotice);
+    setHighlightedRequestId(state.assignedRequestId == null ? null : String(state.assignedRequestId));
+    navigate(location.pathname, { replace: true, state: null });
   }, [location.key, location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(''), 3000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!highlightedRequestId) return undefined;
+    const timer = window.setTimeout(() => setHighlightedRequestId(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [highlightedRequestId]);
 
   function openQueueRow(request) {
     if (request.trip_id) navigate(`/manager/trips/${request.trip_id}`);
@@ -75,7 +90,13 @@ export default function DispatchQueuePage() {
         </div>
       </div>
 
-      {notice && <div className="queue-assignment-notice" role="status">{notice}<button type="button" className="btn btn--soft btn--sm" onClick={() => setNotice('')} aria-label="Dismiss notification">Dismiss</button></div>}
+      {notice && (
+        <div className="queue-success-toast" role="status" aria-live="polite">
+          <CheckCircle2 size={21} aria-hidden="true" />
+          <div className="queue-success-toast__copy"><strong>Trip assigned successfully</strong><span>{notice}</span></div>
+          <button type="button" className="queue-success-toast__close" onClick={() => setNotice('')} aria-label="Dismiss success message"><X size={17} /></button>
+        </div>
+      )}
 
       <div className="stat-row">
         <div className="stat">
@@ -112,10 +133,11 @@ export default function DispatchQueuePage() {
                   : visible.map((r) => {
                     const TripIcon = TRIP_ICON[r.trip_type] || ArrowRight;
                     const requested = new Date(r.requested_at);
+                    const isNewlyAssigned = highlightedRequestId === String(r.id);
                     return (
                       <tr
                         key={r.id}
-                        className="queue-row-clickable"
+                        className={`queue-row-clickable${isNewlyAssigned ? ' queue-row--just-assigned' : ''}`}
                         onClick={() => openQueueRow(r)}
                         onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openQueueRow(r); } }}
                         tabIndex={0}
@@ -123,7 +145,7 @@ export default function DispatchQueuePage() {
                       >
                         <td><div className="person">
                           <span className="avatar avatar--lg">{initials(r.employee_name)}</span>
-                          <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}</div></div>
+                          <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}{isNewlyAssigned && <span className="queue-new-label">JUST ASSIGNED</span>}</div></div>
                         </div></td>
                         <td><div className="place"><MapPin size={15} /><div><div className="strong">{r.destination || `${r.checkpoints?.length || 0} destinations`}</div><div className="muted small">From: {r.origin || 'Origin not recorded'} · {r.checkpoints?.length || 0} destinations</div></div></div></td>
                         <td><span className="chip"><TripIcon size={14} /> {r.trip_type}{r.checkpoints?.length > 0 && <em>{r.checkpoints.length} stops</em>}</span></td>

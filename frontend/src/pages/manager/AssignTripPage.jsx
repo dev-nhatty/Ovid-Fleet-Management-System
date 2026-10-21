@@ -61,7 +61,12 @@ export default function AssignTripPage() {
         vehicleId: Number(selectedVehicle),
         driverId: Number(selectedDriver),
       });
-      navigate('/manager/queue', { state: { assignmentNotice: `Trip ${requestRef(data.request.id)} assigned successfully.` } });
+      navigate('/manager/queue', {
+        state: {
+          assignmentNotice: `Trip ${requestRef(data.request.id)} assigned successfully.`,
+          assignedRequestId: Number(data.request.id),
+        },
+      });
     } catch (err) {
       setError(err.message || 'Could not assign this trip.');
       if (err.status === 409) await load();
