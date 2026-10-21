@@ -1,0 +1,13 @@
+const express = require('express');
+const { requireRole } = require('../middleware/role.middleware');
+const { ROLES } = require('../config/roles');
+const { listAdminVehicles, getVehicleOptions, getAdminVehicle, createAdminVehicle, updateAdminVehicle, updateAdminVehicleStatus } = require('../controllers/adminVehicles.controller');
+const router = express.Router();
+router.use(requireRole(ROLES.ADMIN));
+router.get('/', listAdminVehicles);
+router.get('/options', getVehicleOptions);
+router.post('/', createAdminVehicle);
+router.get('/:id', getAdminVehicle);
+router.patch('/:id', updateAdminVehicle);
+router.patch('/:id/status', updateAdminVehicleStatus);
+module.exports = router;

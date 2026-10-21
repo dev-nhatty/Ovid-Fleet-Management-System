@@ -15,6 +15,7 @@ const authRoutes = require('./routes/auth.routes');
 const authCheckRoutes = require('./routes/authCheck.routes'); // temporary
 const usersRoutes = require('./routes/users.routes');
 const departmentsRoutes = require('./routes/departments.routes');
+const adminVehiclesRoutes = require('./routes/adminVehicles.routes');
 const tripRequestsRoutes = require('./routes/tripRequests.routes');
 const vehiclesRoutes = require('./routes/vehicles.routes');
 const driversRoutes = require('./routes/drivers.routes');
@@ -77,6 +78,7 @@ app.use('/api/auth-check', authCheckRoutes); // temporary
 
 app.use('/api/users', requireRole(ROLES.ADMIN), usersRoutes);
 app.use('/api/departments', requireRole(ROLES.ADMIN), departmentsRoutes);
+app.use('/api/admin/vehicles', requireRole(ROLES.ADMIN), adminVehiclesRoutes);
 app.use('/api/trip-requests', tripRequestsRoutes);
 app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/drivers', driversRoutes);

@@ -19,7 +19,7 @@ import RecordFuelPage from './pages/manager/RecordFuelPage.jsx';
 import UsersPage from './pages/admin/UsersPage.jsx';
 import NewUserPage from './pages/admin/NewUserPage.jsx';
 import DepartmentsPage from './pages/admin/DepartmentsPage.jsx';
-import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
+import AdminVehiclesPage from './pages/admin/VehiclesPage.jsx';
 import { ROLES } from './config/roles.js';
 
 export default function App() {
@@ -51,10 +51,10 @@ export default function App() {
       {/* System Administrator pages */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
         <Route element={<AppLayout />}>
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/users/new" element={<NewUserPage />} />
           <Route path="/admin/departments" element={<DepartmentsPage />} />
+          <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
         </Route>
       </Route>
 

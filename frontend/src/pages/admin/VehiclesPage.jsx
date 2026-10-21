@@ -1,0 +1,104 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleGauge, Ellipsis, Fuel, Plus, RefreshCw, Search, Truck, Wrench, X, Eye, Pencil, Power, CalendarDays } from 'lucide-react';
+import StatusBadge from '../../components/StatusBadge.jsx';
+import { createAdminVehicle, getAdminVehicle, getAdminVehicleOptions, listAdminVehicles, updateAdminVehicle, updateAdminVehicleStatus } from '../../api/adminVehicles.api.js';
+import './vehicles-page.css';
+
+const PAGE_SIZE = 6;
+const blankForm = { plateNumber: '', brandName: '', modelName: '', modelYear: '', vehicleTypeId: '', fuelTypeId: '', status: 'Active' };
+const titleFor = (v) => [v.brand_name, v.model_name, v.model_year].filter(Boolean).join(' ') || 'Unnamed vehicle';
+const plate = (v) => v.plate_number || 'No plate';
+const initials = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
+const displayStatus = (v) => v.operational_status || v.vehicle_status || 'Unknown';
+const badgeTone = (status) => ({ Available: 'green', Active: 'green', 'On Trip': 'blue', Maintenance: 'red', Inactive: 'gray' }[status] || 'gray');
+
+function VehicleForm({ initial, options, onSave, onClose }) {
+  const [form, setForm] = useState(() => ({ ...blankForm, ...(initial ? {
+    plateNumber: initial.plate_number || '', brandName: initial.brand_name || '', modelName: initial.model_name || '',
+    modelYear: initial.model_year ? String(initial.model_year) : '', vehicleTypeId: initial.vehicle_type_id ? String(initial.vehicle_type_id) : '',
+    fuelTypeId: initial.fuel_type_id ? String(initial.fuel_type_id) : '', status: initial.vehicle_status || 'Active',
+  } : {}) }));
+  const [errors, setErrors] = useState({}); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  const change = (key, value) => { setForm((f) => ({ ...f, [key]: value })); setErrors((e) => ({ ...e, [key]: '' })); };
+  async function submit(e) {
+    e.preventDefault();
+    const next = {};
+    if (!form.plateNumber.trim()) next.plateNumber = 'Plate number is required.';
+    if (!form.brandName.trim()) next.brandName = 'Brand / make is required.';
+    if (!form.modelName.trim()) next.modelName = 'Model is required.';
+    if (!form.vehicleTypeId) next.vehicleTypeId = 'Choose a vehicle type.';
+    if (!form.fuelTypeId) next.fuelTypeId = 'Choose a fuel type.';
+    if (form.modelYear && (!/^\d{4}$/.test(form.modelYear) || Number(form.modelYear) < 1900 || Number(form.modelYear) > 2100)) next.modelYear = 'Enter a year between 1900 and 2100.';
+    if (Object.keys(next).length) { setErrors(next); return; }
+    setSaving(true); setError('');
+    try { await onSave({ ...form, modelYear: form.modelYear || null, vehicleTypeId: Number(form.vehicleTypeId), fuelTypeId: Number(form.fuelTypeId) }); }
+    catch (err) { setError(err.message || 'Could not save vehicle.'); if (err.fields) setErrors(err.fields); }
+    finally { setSaving(false); }
+  }
+  return <div className="avp-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><section className="avp-modal" role="dialog" aria-modal="true" aria-labelledby="avp-form-title">
+    <div className="avp-modal-head"><div><span className="avp-eyebrow">FLEET REGISTRY</span><h2 id="avp-form-title">{initial ? 'Edit Vehicle' : 'New Vehicle'}</h2><p>{initial ? 'Update the registered vehicle information.' : 'Register a vehicle in the fleet.'}</p></div><button className="avp-icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button></div>
+    {error && <div className="avp-alert" role="alert">{error}</div>}
+    <form onSubmit={submit} noValidate><div className="avp-form-grid">
+      <label className="avp-field"><span>Plate Number <b>*</b></span><input autoFocus value={form.plateNumber} maxLength={20} onChange={(e) => change('plateNumber', e.target.value.toUpperCase())} placeholder="e.g. 4LMN29"/>{errors.plateNumber && <small>{errors.plateNumber}</small>}</label>
+      <label className="avp-field"><span>Initial Status</span><select value={form.status} onChange={(e) => change('status', e.target.value)}><option value="Active">Active</option><option value="Out of Service">Maintenance / Out of Service</option><option value="Returned to Provider">Inactive</option></select></label>
+      <label className="avp-field"><span>Brand / Make <b>*</b></span><input value={form.brandName} maxLength={80} onChange={(e) => change('brandName', e.target.value)} placeholder="e.g. Toyota"/>{errors.brandName && <small>{errors.brandName}</small>}</label>
+      <label className="avp-field"><span>Model <b>*</b></span><input value={form.modelName} maxLength={80} onChange={(e) => change('modelName', e.target.value)} placeholder="e.g. Hilux"/>{errors.modelName && <small>{errors.modelName}</small>}</label>
+      <label className="avp-field"><span>Model Year</span><input inputMode="numeric" value={form.modelYear} maxLength={4} onChange={(e) => change('modelYear', e.target.value)} placeholder="e.g. 2022"/>{errors.modelYear && <small>{errors.modelYear}</small>}</label>
+      <label className="avp-field"><span>Vehicle Type <b>*</b></span><select value={form.vehicleTypeId} onChange={(e) => change('vehicleTypeId', e.target.value)}><option value="">Select vehicle type</option>{options.vehicleTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{errors.vehicleTypeId && <small>{errors.vehicleTypeId}</small>}</label>
+      <label className="avp-field avp-field--full"><span>Fuel Type <b>*</b></span><select value={form.fuelTypeId} onChange={(e) => change('fuelTypeId', e.target.value)}><option value="">Select fuel type</option>{options.fuelTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>{errors.fuelTypeId && <small>{errors.fuelTypeId}</small>}<em>Options come from the existing vehicle and fuel type records.</em></label>
+    </div><div className="avp-modal-actions"><button type="button" className="btn btn--soft" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="btn btn--primary" disabled={saving}>{saving ? 'Saving…' : initial ? 'Save Changes' : 'Register Vehicle'}</button></div></form>
+  </section></div>;
+}
+
+function VehicleDetails({ data, onClose, onEdit }) {
+  if (!data) return null; const v = data.vehicle;
+  return <div className="avp-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><section className="avp-modal avp-modal--details" role="dialog" aria-modal="true" aria-labelledby="avp-detail-title">
+    <div className="avp-modal-head"><div><span className="avp-eyebrow">VEHICLE DETAILS</span><h2 id="avp-detail-title">{titleFor(v)}</h2><p>{plate(v)}</p></div><button className="avp-icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button></div>
+    <div className="avp-detail-grid"><div><span>Vehicle type</span><strong>{v.vehicle_type || 'Not specified'}</strong></div><div><span>Fuel type</span><strong>{v.fuel_type || 'Not specified'}</strong></div><div><span>Current driver</span><strong>{v.current_driver || 'Not assigned'}</strong></div><div><span>Status</span><StatusBadge tone={badgeTone(displayStatus(v))}>{displayStatus(v)}</StatusBadge></div></div>
+    <div className="avp-detail-section"><div className="avp-detail-title"><h3>Trip history</h3><span>Latest 10 records</span></div><div className="avp-history-scroll"><table className="avp-history"><thead><tr><th>TRIP</th><th>DESTINATION</th><th>DRIVER</th><th>STATUS</th></tr></thead><tbody>{data.trips?.length ? data.trips.map((t) => <tr key={t.id}><td>TRP-{String(t.id).padStart(4, '0')}</td><td>{t.destination}</td><td>{t.driver_name}</td><td>{t.status}</td></tr>) : <tr><td colSpan="4" className="avp-empty-cell">No trip history recorded.</td></tr>}</tbody></table></div></div>
+    <div className="avp-detail-section"><div className="avp-detail-title"><h3>Fuel history</h3><span>Latest 10 records</span></div><div className="avp-history-scroll"><table className="avp-history"><thead><tr><th>REFERENCE</th><th>DATE</th><th>FUEL TYPE</th><th>QUANTITY</th></tr></thead><tbody>{data.fuelLogs?.length ? data.fuelLogs.map((f) => <tr key={f.id}><td>{f.transaction_ref}</td><td>{f.fueled_date ? new Date(`${f.fueled_date}T00:00:00`).toLocaleDateString() : '—'}</td><td>{f.fuel_type || '—'}</td><td>{Number(f.liters).toLocaleString()} L</td></tr>) : <tr><td colSpan="4" className="avp-empty-cell">No fuel history recorded.</td></tr>}</tbody></table></div></div>
+    <div className="avp-modal-actions"><button className="btn btn--soft" onClick={onClose}>Close</button><button className="btn btn--primary" onClick={() => onEdit(v)}>Edit Vehicle</button></div>
+  </section></div>;
+}
+
+export default function VehiclesPage() {
+  const [vehicles, setVehicles] = useState([]); const [summary, setSummary] = useState({ total: 0, available: 0, onTrip: 0, unavailable: 0, maintenance: 0, inactive: 0 });
+  const [options, setOptions] = useState({ vehicleTypes: [], fuelTypes: [] }); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
+  const [filter, setFilter] = useState('All'); const [search, setSearch] = useState(''); const [typeFilter, setTypeFilter] = useState('All'); const [fuelFilter, setFuelFilter] = useState('All'); const [sort, setSort] = useState('name'); const [page, setPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState(null); const [details, setDetails] = useState(null); const [actionError, setActionError] = useState(''); const [busyId, setBusyId] = useState(null);
+  const load = useCallback(async (quiet = false) => { quiet ? setRefreshing(true) : setLoading(true); try { const [result, optionResult] = await Promise.all([listAdminVehicles(), getAdminVehicleOptions()]); setVehicles(result.vehicles || []); setSummary(result.summary || {}); setOptions({ vehicleTypes: optionResult.vehicleTypes || [], fuelTypes: optionResult.fuelTypes || [] }); setError(''); } catch (e) { setError(e.message || 'Could not load vehicles.'); } finally { setLoading(false); setRefreshing(false); } }, []);
+  useEffect(() => { load(); }, [load]);
+  const counts = useMemo(() => ({ All: summary.total || 0, Available: summary.available || 0, 'On Trip': summary.onTrip || 0, Maintenance: summary.maintenance || 0, Inactive: summary.inactive || 0 }), [summary]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase(); const list = vehicles.filter((v) => {
+      const matchesStatus = filter === 'All' || displayStatus(v) === filter;
+      const haystack = [v.plate_number, v.brand_name, v.model_name, v.model_year, v.vehicle_type, v.fuel_type, v.current_driver].filter(Boolean).join(' ').toLowerCase();
+      return matchesStatus && (!q || haystack.includes(q)) && (typeFilter === 'All' || v.vehicle_type === typeFilter) && (fuelFilter === 'All' || v.fuel_type === fuelFilter);
+    });
+    return list.sort((a, b) => sort === 'plate' ? a.plate_number.localeCompare(b.plate_number) : sort === 'year' ? (b.model_year || 0) - (a.model_year || 0) : titleFor(a).localeCompare(titleFor(b)));
+  }, [vehicles, filter, search, typeFilter, fuelFilter, sort]);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); const safePage = Math.min(page, pages); const shown = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [filter, search, typeFilter, fuelFilter, sort]);
+  async function saveVehicle(body) { if (editing) await updateAdminVehicle(editing.id, body); else await createAdminVehicle(body); setFormOpen(false); setEditing(null); setActionError(''); await load(true); }
+  function startEdit(v = null) { setDetails(null); setEditing(v); setFormOpen(true); }
+  async function openDetails(v) { setActionError(''); try { setDetails(await getAdminVehicle(v.id)); } catch (e) { setActionError(e.message || 'Could not load vehicle details.'); } }
+  async function changeStatus(v) { const next = v.vehicle_status === 'Returned to Provider' ? 'Active' : 'Returned to Provider'; const label = next === 'Active' ? 'activate' : 'deactivate'; if (!window.confirm(`Are you sure you want to ${label} ${titleFor(v)} (${plate(v)})?`)) return; setBusyId(v.id); setActionError(''); try { await updateAdminVehicleStatus(v.id, next); await load(true); } catch (e) { setActionError(e.message || 'Could not change vehicle status.'); } finally { setBusyId(null); } }
+  async function markMaintenance(v) { const next = v.vehicle_status === 'Out of Service' ? 'Active' : 'Out of Service'; setBusyId(v.id); setActionError(''); try { await updateAdminVehicleStatus(v.id, next); await load(true); } catch (e) { setActionError(e.message || 'Could not update maintenance status.'); } finally { setBusyId(null); } }
+  return <section className="avp-page">
+    <div className="avp-page-head"><div><div className="avp-eyebrow">MASTER DATA • FLEET REGISTRY</div><h1>Vehicles</h1><p>Manage registered fleet vehicles, specifications, operational lifecycles, and driver allocations.</p></div><button className="btn btn--primary avp-new-button" onClick={() => startEdit()}><Plus size={17}/> New Vehicle</button></div>
+    {actionError && <div className="avp-notice avp-notice--error" role="alert"><span>{actionError}</span><button onClick={() => setActionError('')} aria-label="Dismiss"><X size={16}/></button></div>}
+    {error && <div className="avp-notice avp-notice--error" role="alert"><span>{error}</span><button onClick={() => load()}><RefreshCw size={14}/> Retry</button></div>}
+    <div className="avp-summary-grid">
+      <article className="avp-summary-card"><div className="avp-summary-top"><span>TOTAL VEHICLES</span><span className="avp-summary-icon"><Truck size={19}/></span></div><div className="avp-summary-value">{summary.total ?? '—'} <span className="avp-summary-pill">Fleet units</span></div><p>Registered fleet vehicles</p></article>
+      <article className="avp-summary-card"><div className="avp-summary-top"><span>AVAILABLE</span><span className="avp-summary-icon avp-summary-icon--green"><CheckCircle2 size={19}/></span></div><div className="avp-summary-value">{summary.available ?? '—'} <span className="avp-summary-pill avp-summary-pill--green">Ready</span></div><p>Ready for immediate dispatch</p></article>
+      <article className="avp-summary-card"><div className="avp-summary-top"><span>ON TRIP</span><span className="avp-summary-icon avp-summary-icon--blue"><CircleGauge size={19}/></span></div><div className="avp-summary-value">{summary.onTrip ?? '—'} <span className="avp-summary-pill avp-summary-pill--blue">Active</span></div><p>Currently assigned to trips</p></article>
+      <article className="avp-summary-card"><div className="avp-summary-top"><span>UNAVAILABLE</span><span className="avp-summary-icon avp-summary-icon--red"><Wrench size={19}/></span></div><div className="avp-summary-value">{summary.unavailable ?? '—'} <span className="avp-summary-pill avp-summary-pill--red">Service / Inactive</span></div><p>Maintenance or decommissioned</p></article>
+    </div>
+    <div className="avp-toolbar"><div className="avp-tabs">{['All', 'Available', 'On Trip', 'Maintenance', 'Inactive'].map((f) => <button key={f} className={filter === f ? 'is-active' : ''} onClick={() => setFilter(f)}>{f}<span>{counts[f] ?? 0}</span></button>)}</div><label className="avp-search"><Search size={17}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by plate number, make, model..."/><kbd>⌘F</kbd></label><label className="avp-select"><span className="sr-only">Vehicle type filter</span><select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="All">Type: All</option>{options.vehicleTypes.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}</select><ChevronDown size={14}/></label><label className="avp-select"><span className="sr-only">Fuel type filter</span><select value={fuelFilter} onChange={(e) => setFuelFilter(e.target.value)}><option value="All">Fuel: All</option>{options.fuelTypes.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}</select><ChevronDown size={14}/></label><label className="avp-select avp-sort"><span className="sr-only">Sort vehicles</span><select value={sort} onChange={(e) => setSort(e.target.value)}><option value="name">Sort: Name (A–Z)</option><option value="plate">Sort: Plate (A–Z)</option><option value="year">Sort: Model year</option></select><ChevronDown size={14}/></label><button className="avp-refresh" onClick={() => load(true)} disabled={refreshing} aria-label="Refresh vehicles"><RefreshCw size={16} className={refreshing ? 'avp-spin' : ''}/></button></div>
+    <div className="avp-table-card"><div className="avp-table-scroll"><table className="avp-table"><thead><tr><th>VEHICLE</th><th>VEHICLE TYPE</th><th>FUEL TYPE</th><th>CURRENT DRIVER</th><th>STATUS</th><th className="avp-actions-head">ACTIONS</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan="6" className="avp-state">Loading vehicle registry…</td></tr> : shown.length ? shown.map((v) => <tr key={v.id} className={v.vehicle_status === 'Returned to Provider' ? 'avp-row--inactive' : ''}><td><div className="avp-vehicle-cell"><span className="avp-vehicle-icon"><Truck size={19}/></span><span><strong>{titleFor(v)}</strong><small>{plate(v)}</small></span></div></td><td>{v.vehicle_type || '—'}</td><td>{v.fuel_type || '—'}</td><td>{v.current_driver ? <span className="avp-driver"><span className="avp-avatar">{initials(v.current_driver)}</span>{v.current_driver}</span> : <span className="avp-muted">—</span>}</td><td><StatusBadge tone={badgeTone(displayStatus(v))}>{displayStatus(v)}</StatusBadge></td><td><div className="avp-actions"><button className="avp-action-link" onClick={() => openDetails(v)}>View</button><i>•</i><button className="avp-action-link" onClick={() => startEdit(v)}>Edit</button><i>•</i><button className={`avp-action-link ${v.vehicle_status === 'Active' ? 'avp-action-link--muted' : ''}`} disabled={busyId === v.id || displayStatus(v) === 'On Trip'} onClick={() => changeStatus(v)}>{busyId === v.id ? 'Saving…' : v.vehicle_status === 'Returned to Provider' ? 'Activate' : 'Deactivate'}</button><button className="avp-row-menu" title={v.vehicle_status === 'Out of Service' ? 'Mark available' : 'Mark maintenance'} disabled={busyId === v.id || displayStatus(v) === 'On Trip'} onClick={() => markMaintenance(v)}><Wrench size={14}/></button></div></td></tr>) : <tr><td colSpan="6" className="avp-state"><Truck size={24}/><strong>No vehicles found</strong><span>Try adjusting your search or filters.</span></td></tr>}
+    </tbody></table></div><div className="avp-table-footer"><span>Showing {filtered.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} vehicles</span><div className="avp-pagination"><button disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}><ChevronLeft size={15}/> Previous</button><span>Page {safePage} of {pages}</span><button disabled={safePage >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>Next <ChevronRight size={15}/></button></div></div></div>
+    <p className="avp-footnote"><Fuel size={13}/> Vehicle status is derived from registry status and active trips. Trip and fuel history is read-only here.</p>
+    {formOpen && <VehicleForm initial={editing} options={options} onSave={saveVehicle} onClose={() => { setFormOpen(false); setEditing(null); }}/>} {details && <VehicleDetails data={details} onClose={() => setDetails(null)} onEdit={startEdit}/>}
+  </section>;
+}

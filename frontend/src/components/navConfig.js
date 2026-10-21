@@ -6,6 +6,7 @@ export const NAV = {
     { title: 'Dispatch', items: [
       { label: 'Dashboard', to: '/manager/dashboard', icon: LayoutDashboard },
       { label: 'Queue', to: '/manager/queue', icon: Inbox },
+      { label: 'Assign Trip', to: '/manager/assign-trip', icon: Inbox },
       { label: 'New Request', to: '/manager/new-request', icon: PlusCircle },
       { label: 'Vehicles', to: '/manager/vehicles', icon: Truck },
       { label: 'Drivers', to: '/manager/drivers', icon: IdCard },
