@@ -153,10 +153,28 @@ async function getVehicleDetails(req, res, next) {
       [vehicleId]
     );
 
+    const recentMaintenanceResult = await pool.query(
+      `SELECT
+          m.id AS maintenance_record_id,
+          m.maintenance_type,
+          m.cost,
+          m.status AS maintenance_status,
+          m.maintenance_at,
+          m.recorded_at,
+          u.name AS recorded_by
+        FROM vehicle_maintenance_records m
+        LEFT JOIN users u ON u.id = m.recorded_by_user_id
+       WHERE m.vehicle_id = $1
+       ORDER BY m.maintenance_at DESC, m.recorded_at DESC, m.id DESC
+       LIMIT 10`,
+      [vehicleId]
+    );
+
     res.json({
       vehicle: vehicleResult.rows[0],
       recentTrips: recentTripsResult.rows,
       recentFuelLogs: recentFuelLogsResult.rows,
+      recentMaintenance: recentMaintenanceResult.rows,
       refreshedAt: new Date().toISOString(),
     });
   } catch (err) {

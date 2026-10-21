@@ -92,6 +92,20 @@ CREATE TABLE fuel_transactions (
     recorded_at             TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
+CREATE TABLE vehicle_maintenance_records (
+    id                      SERIAL PRIMARY KEY,
+    vehicle_id              INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    maintenance_type        VARCHAR(40) NOT NULL
+                                CHECK (maintenance_type IN ('Routine Service', 'Repair', 'Inspection')),
+    cost                    NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (cost >= 0),
+    status                  VARCHAR(20) NOT NULL DEFAULT 'Completed'
+                                CHECK (status IN ('Scheduled', 'In Progress', 'Completed', 'Cancelled')),
+    maintenance_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    recorded_by_user_id     INTEGER NOT NULL REFERENCES users(id),
+    recorded_at             TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE location_pings (
     id              SERIAL PRIMARY KEY,
     vehicle_id      INTEGER NOT NULL REFERENCES vehicles(id),
@@ -108,3 +122,4 @@ CREATE INDEX idx_fuel_transactions_vehicle   ON fuel_transactions(vehicle_id, fu
 CREATE INDEX idx_fuel_transactions_status    ON fuel_transactions(status);
 CREATE INDEX idx_users_role                  ON users(role);
 CREATE INDEX idx_location_pings_vehicle_time ON location_pings(vehicle_id, "timestamp");
+CREATE INDEX idx_vehicle_maintenance_vehicle_time ON vehicle_maintenance_records(vehicle_id, maintenance_at DESC);

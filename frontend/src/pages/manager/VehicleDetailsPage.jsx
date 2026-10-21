@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Clock3, RefreshCw, Truck, Fuel } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Clock3, RefreshCw, Truck, Fuel, Wrench } from 'lucide-react';
 import { getVehicleDetails } from '../../api/vehicles.api.js';
 import './vehicle-details.css';
 
@@ -14,6 +14,35 @@ function formatDate(value) {
     return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Time unavailable';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time unavailable';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatCost(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  return `ETB ${amount.toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function MaintenanceStatus({ status }) {
+  const normalized = status || 'Unknown';
+  const tone = normalized === 'Completed' ? 'completed'
+    : normalized === 'In Progress' ? 'progress'
+      : normalized === 'Scheduled' ? 'scheduled'
+        : normalized === 'Cancelled' ? 'cancelled'
+          : 'neutral';
+  return <span className={`vehicle-detail-maintenance-status vehicle-detail-maintenance-status--${tone}`}>{normalized}</span>;
 }
 
 function StatusPill({ status }) {
@@ -31,6 +60,7 @@ export default function VehicleDetailsPage() {
   const [vehicle, setVehicle] = useState(null);
   const [recentTrips, setRecentTrips] = useState([]);
   const [recentFuelLogs, setRecentFuelLogs] = useState([]);
+  const [recentMaintenance, setRecentMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -43,6 +73,7 @@ export default function VehicleDetailsPage() {
       setVehicle(result.vehicle || null);
       setRecentTrips(Array.isArray(result.recentTrips) ? result.recentTrips : []);
       setRecentFuelLogs(Array.isArray(result.recentFuelLogs) ? result.recentFuelLogs : []);
+      setRecentMaintenance(Array.isArray(result.recentMaintenance) ? result.recentMaintenance : []);
       setError('');
     } catch (err) {
       setError(err.message || 'Could not load vehicle details.');
@@ -171,6 +202,45 @@ export default function VehicleDetailsPage() {
           </div>
         ) : (
           <div className="vehicle-detail-empty vehicle-detail-fuel-empty"><Fuel size={22} /><strong>No fuel records yet</strong><span>Fuel transactions recorded for this vehicle will appear here.</span></div>
+        )}
+      </section>
+
+      <section className="vehicle-detail-maintenance">
+        <div className="vehicle-detail-section-heading">
+          <h2>Maintenance History</h2>
+          <span>{recentMaintenance.length} {recentMaintenance.length === 1 ? 'record' : 'records'}</span>
+        </div>
+        {recentMaintenance.length ? (
+          <div className="vehicle-detail-fuel-table-wrap">
+            <table className="vehicle-detail-maintenance-table">
+              <thead>
+                <tr>
+                  <th>Maintenance type</th>
+                  <th>Cost</th>
+                  <th>Status</th>
+                  <th>Time</th>
+                  <th>Recorded by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentMaintenance.map((record) => (
+                  <tr key={record.maintenance_record_id}>
+                    <td>{record.maintenance_type || '—'}</td>
+                    <td>{formatCost(record.cost)}</td>
+                    <td><MaintenanceStatus status={record.maintenance_status} /></td>
+                    <td><time dateTime={record.maintenance_at}>{formatDateTime(record.maintenance_at)}</time></td>
+                    <td>{record.recorded_by || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="vehicle-detail-empty vehicle-detail-maintenance-empty">
+            <Wrench size={22} />
+            <strong>No maintenance history yet</strong>
+            <span>Maintenance records for this vehicle will appear here when they are recorded.</span>
+          </div>
         )}
       </section>
     </section>
