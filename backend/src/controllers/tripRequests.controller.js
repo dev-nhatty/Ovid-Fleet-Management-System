@@ -38,16 +38,17 @@ async function listTripRequests(req, res, next) {
     const { rows } = await pool.query(
       `SELECT tr.id, tr.employee_id, e.name AS employee_name, d.name AS department,
               tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
-              tr.recorded_by_user_id,
+              tr.recorded_by_user_id, t.id AS trip_id, t.assigned_at,
               COALESCE(json_agg(json_build_object('id', tc.id, 'location', tc.location,
                 'sequenceOrder', tc.sequence_order)
                 ORDER BY tc.sequence_order) FILTER (WHERE tc.id IS NOT NULL), '[]') AS checkpoints
          FROM trip_requests tr
          JOIN employees e ON e.id = tr.employee_id
          LEFT JOIN departments d ON d.id = e.department_id
+         LEFT JOIN trips t ON t.trip_request_id = tr.id
          LEFT JOIN trip_checkpoints tc ON tc.trip_request_id = tr.id
-        GROUP BY tr.id, e.name, d.name
-        ORDER BY tr.requested_at DESC, tr.id DESC
+        GROUP BY tr.id, e.name, d.name, t.id, t.assigned_at
+        ORDER BY COALESCE(t.assigned_at, tr.requested_at) DESC, tr.id DESC
         LIMIT $1 OFFSET $2`,
       [pageSize, (currentPage - 1) * pageSize]
     );

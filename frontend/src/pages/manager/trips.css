@@ -6,3 +6,42 @@
 .vehicle-name-stack { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
 .vehicle-name-stack strong { font-weight:650; }
 .vehicle-name-stack small { color:var(--muted, #777280); font-size:12px; font-weight:400; }
+
+
+/* Two-step trip cancellation review */
+.cancel-flow-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(24,22,34,.48);backdrop-filter:blur(2px)}
+.cancel-flow-dialog{width:min(620px,100%);max-height:min(88vh,820px);overflow:auto;background:#fff;border:1px solid #e8e5ef;border-radius:12px;box-shadow:0 24px 80px rgba(24,22,34,.24);padding:25px}
+.cancel-flow-heading{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:13px}
+.cancel-flow-kicker{display:block;color:#b42318;font-size:10px;font-weight:800;letter-spacing:.8px;margin-bottom:8px}
+.cancel-flow-heading h2{margin:0;color:#292631;font-size:21px;letter-spacing:-.3px}
+.cancel-flow-close{border:0;background:#f5f3f8;color:#625e6d;border-radius:7px;width:32px;height:32px;font-size:23px;line-height:1;cursor:pointer}
+.cancel-flow-intro{font-size:13px;line-height:1.65;color:#6d6977;margin:0 0 17px}
+.cancel-checkpoint-options{display:grid;gap:8px;max-height:300px;overflow:auto;margin:0 0 18px}
+.cancel-checkpoint-option{display:flex;align-items:center;gap:12px;border:1px solid #e8e5ee;border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.cancel-checkpoint-option:has(input:checked){border-color:#8fb5ff;background:#f5f8ff}
+.cancel-checkpoint-option input{width:16px;height:16px;accent-color:#075bea;flex-shrink:0}
+.cancel-checkpoint-number{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:#f0eef8;color:#55516b;font-size:11px;font-weight:750;flex-shrink:0}
+.cancel-checkpoint-label{min-width:0;display:grid;gap:4px}
+.cancel-checkpoint-label strong{font-size:13px;color:#33303b;font-weight:650}
+.cancel-checkpoint-label small{font-size:11px;color:#898592}
+.cancel-no-checkpoints{padding:15px;border:1px dashed #dedbe6;border-radius:8px;color:#777280;font-size:12px;margin-bottom:18px}
+.cancel-flow-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:17px;border-top:1px solid #efedf3;margin-top:18px}
+.cancel-flow-actions button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:39px;border-radius:7px;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer}
+.cancel-flow-actions button:disabled{opacity:.55;cursor:wait}
+.cancel-secondary{background:#fff;border:1px solid #dedbe6;color:#575361}
+.cancel-primary{background:#292631;border:1px solid #292631;color:#fff}
+.cancel-next-icon{transform:rotate(180deg)}
+.cancel-danger-confirm{background:#b42318;border:1px solid #b42318;color:#fff}
+.cancel-review-block{border:1px solid #e9e6ef;border-radius:8px;padding:14px 15px}
+.cancel-review-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#666270}
+.cancel-review-row strong{display:grid;place-items:center;min-width:25px;height:25px;padding:0 7px;border-radius:20px;background:#f0eef8;color:#383542}
+.cancel-review-block ul{list-style:none;padding:0;margin:10px 0 15px;display:grid;gap:8px}
+.cancel-review-block ul:last-child{margin-bottom:0}
+.cancel-review-block li{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.45;color:#4c4856}
+.cancel-review-block li svg{flex-shrink:0;color:#00875e;margin-top:1px}
+.cancel-review-block .unreached-checkpoints li svg{color:#898592}
+.cancel-review-block>p{margin:10px 0 15px;color:#898592;font-size:12px}
+.cancel-consequence{margin-top:13px;padding:13px 14px;background:#fff8f6;border:1px solid #ffe1db;border-radius:8px}
+.cancel-consequence strong{font-size:12px;color:#8f2118}
+.cancel-consequence ul{padding-left:17px;margin:8px 0 0;color:#6f5b59;font-size:11px;line-height:1.7}
+@media(max-width:560px){.cancel-flow-backdrop{padding:10px;align-items:end}.cancel-flow-dialog{max-height:90vh;padding:19px;border-radius:12px 12px 8px 8px}.cancel-flow-heading h2{font-size:18px}.cancel-flow-actions{flex-direction:column-reverse}.cancel-flow-actions button{width:100%}}

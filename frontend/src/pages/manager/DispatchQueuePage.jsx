@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Flag, Truck, Search, MapPin, ArrowRight, ArrowLeftRight, GitFork } from 'lucide-react';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import { listTripRequests } from '../../api/tripRequests.api.js';
+import './dispatch-queue.css';
 
 const TRIP_ICON = { 'With Checkpoints': GitFork, 'Round Trip': ArrowLeftRight, 'One-way': ArrowRight };
 const initials = (name = '') => name.replace('Dr. ', '').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
@@ -16,6 +17,8 @@ function Status({ status }) {
 
 export default function DispatchQueuePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [notice, setNotice] = useState(location.state?.assignmentNotice || '');
   const [requests, setRequests] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -39,7 +42,19 @@ export default function DispatchQueuePage() {
       .catch((err) => { if (!cancelled) setLoadError(err.message || 'Could not load trip requests.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page]);
+  }, [page, location.key]);
+
+  useEffect(() => {
+    if (location.state?.assignmentNotice) {
+      setNotice(location.state.assignmentNotice);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.key, location.pathname, location.state, navigate]);
+
+  function openQueueRow(request) {
+    if (request.trip_id) navigate(`/manager/trips/${request.trip_id}`);
+    else navigate(`/manager/assign-trip/${request.id}`);
+  }
 
   const visible = requests.filter((r) => {
     const typeMatch = tripFilter === 'All' || r.trip_type === tripFilter;
@@ -53,12 +68,14 @@ export default function DispatchQueuePage() {
         <div>
           <div className="eyebrow">DISPATCH OPERATIONS <i className="dot dot--gray" /> <a className="blue">{total} Requests</a></div>
           <h1>Dispatch Queue</h1>
-          <p className="muted lead">Trip requests pending driver and vehicle assignment</p>
+          <p className="muted lead">Review pending requests and open recently assigned trips</p>
         </div>
         <div className="page-head__actions">
           <button className="btn btn--primary" onClick={() => navigate('/manager/new-request')}><Plus size={16} /> New Request <kbd className="kbd--dark">C</kbd></button>
         </div>
       </div>
+
+      {notice && <div className="queue-assignment-notice" role="status">{notice}<button type="button" className="btn btn--soft btn--sm" onClick={() => setNotice('')} aria-label="Dismiss notification">Dismiss</button></div>}
 
       <div className="stat-row">
         <div className="stat">
@@ -96,7 +113,14 @@ export default function DispatchQueuePage() {
                     const TripIcon = TRIP_ICON[r.trip_type] || ArrowRight;
                     const requested = new Date(r.requested_at);
                     return (
-                      <tr key={r.id}>
+                      <tr
+                        key={r.id}
+                        className="queue-row-clickable"
+                        onClick={() => openQueueRow(r)}
+                        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openQueueRow(r); } }}
+                        tabIndex={0}
+                        aria-label={r.trip_id ? `Open trip ${r.trip_id} details` : `Open request ${r.id} to assign a trip`}
+                      >
                         <td><div className="person">
                           <span className="avatar avatar--lg">{initials(r.employee_name)}</span>
                           <div><div className="strong">{r.employee_name}</div><div className="muted small">{r.department || 'No department'} <i className="dot dot--gray" /> #REQ-{String(r.id).padStart(6, '0')}</div></div>
@@ -105,7 +129,7 @@ export default function DispatchQueuePage() {
                         <td><span className="chip"><TripIcon size={14} /> {r.trip_type}{r.checkpoints?.length > 0 && <em>{r.checkpoints.length} stops</em>}</span></td>
                         <td><div className="strong">{Number.isNaN(requested.getTime()) ? '—' : requested.toLocaleDateString()}</div><div className="muted small">{Number.isNaN(requested.getTime()) ? '' : requested.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></td>
                         <td><Status status={r.status} /></td>
-                        <td className="td-action"><span className="muted small">{r.status === 'Pending' ? 'Awaiting assignment' : r.status}</span></td>
+                        <td className="td-action"><span className="muted small">{r.trip_id ? 'View trip details →' : 'Assign trip →'}</span></td>
                       </tr>
                     );
                   })}

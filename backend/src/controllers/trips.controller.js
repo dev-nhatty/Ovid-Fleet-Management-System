@@ -41,6 +41,24 @@ async function updateTripStatus(req, res, next) {
    await client.query('ROLLBACK');
    return res.status(409).json({ error: `A trip cannot move from ${trip.status} to ${nextStatus}.` });
   }
+  let reachedCheckpointIds = [];
+  if (nextStatus === 'Cancelled') {
+   if (checkpointIds !== undefined && (!Array.isArray(checkpointIds) || checkpointIds.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0))) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({ error: 'Reached checkpoints must be supplied as a list of valid checkpoint IDs.' });
+   }
+   reachedCheckpointIds = Array.isArray(checkpointIds) ? [...new Set(checkpointIds.map(Number))] : [];
+   if (reachedCheckpointIds.length) {
+    const validCheckpoints = await client.query(
+     `SELECT id FROM trip_checkpoints WHERE trip_request_id = $1 AND id = ANY($2::int[])`,
+     [trip.trip_request_id, reachedCheckpointIds]
+    );
+    if (validCheckpoints.rowCount !== reachedCheckpointIds.length) {
+     await client.query('ROLLBACK');
+     return res.status(400).json({ error: 'One or more selected checkpoints do not belong to this trip.' });
+    }
+   }
+  }
   let updated;
   if (nextStatus === 'In Progress') {
    updated = await client.query(
@@ -57,7 +75,7 @@ async function updateTripStatus(req, res, next) {
    await client.query(`UPDATE trip_requests SET status = 'Cancelled' WHERE id = $1`, [trip.trip_request_id]);
   }
   await client.query('COMMIT');
-  return res.json({ trip: updated.rows[0], message: `Trip marked ${nextStatus.toLowerCase()}.` });
+  return res.json({ trip: updated.rows[0], message: `Trip marked ${nextStatus.toLowerCase()}.`, ...(nextStatus === 'Cancelled' ? { reachedCheckpointIds } : {}) });
  } catch (err) {
   try { await client.query('ROLLBACK'); } catch {}
   next(err);

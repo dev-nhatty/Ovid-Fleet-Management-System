@@ -16,6 +16,9 @@ export default function TripDetailPage() {
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
+  const [cancelStep, setCancelStep] = useState(0);
+  const [selectedCheckpointIds, setSelectedCheckpointIds] = useState([]);
+  const [cancelledCheckpointIds, setCancelledCheckpointIds] = useState([]);
 
   async function load() {
     setLoading(true);
@@ -32,14 +35,38 @@ export default function TripDetailPage() {
 
   useEffect(() => { load(); }, [tripId]);
 
-  async function changeStatus(status) {
-    if (status === 'Cancelled' && !window.confirm('Cancel this trip?')) return;
+  function openCancellationFlow() {
+    setSelectedCheckpointIds([]);
+    setCancelStep(1);
+    setActionError('');
+    setActionMessage('');
+  }
+
+  function closeCancellationFlow() {
+    if (savingStatus) return;
+    setCancelStep(0);
+    setSelectedCheckpointIds([]);
+  }
+
+  function toggleCheckpoint(checkpointId) {
+    setSelectedCheckpointIds((current) => current.includes(checkpointId)
+      ? current.filter((id) => id !== checkpointId)
+      : [...current, checkpointId]);
+  }
+
+  async function changeStatus(status, options = {}) {
     setSavingStatus(true);
     setActionError('');
     setActionMessage('');
     try {
-      await updateTripStatus(tripId, status);
-      setActionMessage(`Trip marked ${status.toLowerCase()}.`);
+      await updateTripStatus(tripId, status, options);
+      if (status === 'Cancelled') {
+        setCancelledCheckpointIds(options.checkpointIds || []);
+        setCancelStep(0);
+        setActionMessage('Trip cancelled. The selected checkpoints are marked as reached for this view.');
+      } else {
+        setActionMessage(`Trip marked ${status.toLowerCase()}.`);
+      }
       await load();
     } catch (err) {
       setActionError(err.message || 'Could not update the trip status.');
@@ -75,11 +102,40 @@ export default function TripDetailPage() {
         <div className="trip-lifecycle-buttons">
           {canStart && <button className="lifecycle-btn lifecycle-start" onClick={() => changeStatus('In Progress')} disabled={savingStatus}><Play size={15} /> Start Trip</button>}
           {canComplete && <button className="lifecycle-btn lifecycle-complete" onClick={() => changeStatus('Completed')} disabled={savingStatus}><CheckCircle2 size={16} /> Complete Trip</button>}
-          {canCancel && <button className="lifecycle-btn lifecycle-cancel" onClick={() => changeStatus('Cancelled')} disabled={savingStatus}><Ban size={15} /> Cancel Trip</button>}
+           {canCancel && <button className="lifecycle-btn lifecycle-cancel" onClick={openCancellationFlow} disabled={savingStatus}><Ban size={15} /> Cancel Trip</button>}
         </div>
       </section>}
       {actionError && <div className="trip-action-feedback trip-action-error" role="alert">{actionError}</div>}
       {actionMessage && <div className="trip-action-feedback trip-action-success" role="status">{actionMessage}</div>}
+
+      {cancelStep > 0 && <div className="cancel-flow-backdrop" role="presentation">
+        <section className="cancel-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-flow-title">
+          <div className="cancel-flow-heading">
+            <div><span className="cancel-flow-kicker">TRIP CANCELLATION · STEP {cancelStep} OF 2</span><h2 id="cancel-flow-title">{cancelStep === 1 ? 'Confirm last known progress' : 'Review cancellation'}</h2></div>
+            <button type="button" className="cancel-flow-close" onClick={closeCancellationFlow} disabled={savingStatus} aria-label="Close cancellation flow">×</button>
+          </div>
+          {cancelStep === 1 ? <>
+            <p className="cancel-flow-intro">Select every checkpoint the trip reached before it was stopped. Checkpoints are independent; selecting a later checkpoint does not automatically select earlier ones.</p>
+            {trip.checkpoints?.length ? <div className="cancel-checkpoint-options">
+              {trip.checkpoints.map((checkpoint, index) => <label key={checkpoint.id} className="cancel-checkpoint-option">
+                <input type="checkbox" checked={selectedCheckpointIds.includes(checkpoint.id)} onChange={() => toggleCheckpoint(checkpoint.id)} />
+                <span className="cancel-checkpoint-number">{index + 1}</span>
+                <span className="cancel-checkpoint-label"><strong>{checkpoint.location}</strong><small>Checkpoint {index + 1}</small></span>
+              </label>)}
+            </div> : <div className="cancel-no-checkpoints">This trip has no recorded checkpoints. You can continue with cancellation.</div>}
+            <div className="cancel-flow-actions"><button type="button" className="cancel-secondary" onClick={closeCancellationFlow} disabled={savingStatus}>Keep trip active</button><button type="button" className="cancel-primary" onClick={() => setCancelStep(2)}>Review cancellation <ArrowLeft size={15} className="cancel-next-icon" /></button></div>
+          </> : <>
+            <p className="cancel-flow-intro">Review the trip progress before confirming. Only the checkpoints you selected will be treated as reached; all other checkpoints remain unreached.</p>
+            <div className="cancel-review-block"><div className="cancel-review-row"><span>Reached checkpoints</span><strong>{selectedCheckpointIds.length}</strong></div>
+              {selectedCheckpointIds.length ? <ul>{trip.checkpoints.filter((checkpoint) => selectedCheckpointIds.includes(checkpoint.id)).map((checkpoint) => <li key={checkpoint.id}><CheckCircle2 size={15} />{checkpoint.location}</li>)}</ul> : <p>No checkpoints selected.</p>}
+              <div className="cancel-review-row"><span>Unreached checkpoints</span><strong>{(trip.checkpoints || []).length - selectedCheckpointIds.length}</strong></div>
+              {(trip.checkpoints || []).filter((checkpoint) => !selectedCheckpointIds.includes(checkpoint.id)).length > 0 && <ul className="unreached-checkpoints">{trip.checkpoints.filter((checkpoint) => !selectedCheckpointIds.includes(checkpoint.id)).map((checkpoint) => <li key={checkpoint.id}><MapPin size={15} />{checkpoint.location}</li>)}</ul>}
+            </div>
+            <div className="cancel-consequence"><strong>What happens next?</strong><ul><li>The trip and its request will be marked Cancelled.</li><li>The driver and vehicle will no longer be reserved by this active trip.</li><li>This action cannot be reversed from the trip lifecycle controls.</li></ul></div>
+            <div className="cancel-flow-actions"><button type="button" className="cancel-secondary" onClick={() => setCancelStep(1)} disabled={savingStatus}>Back to progress</button><button type="button" className="cancel-danger-confirm" onClick={() => changeStatus('Cancelled', { checkpointIds: selectedCheckpointIds })} disabled={savingStatus}>{savingStatus ? 'Cancelling…' : 'Confirm cancellation'}</button></div>
+          </>}
+        </section>
+      </div>}
 
       <section className="detail-grid">
         <article className="detail-card detail-wide">
@@ -118,7 +174,7 @@ export default function TripDetailPage() {
 
         <article className="detail-card detail-wide">
           <h2><MapPin size={18} /> Route checkpoints <span className="count-chip">{trip.checkpoints?.length || 0}</span></h2>
-          {trip.checkpoints?.length ? <ol className="checkpoint-list">{trip.checkpoints.map((checkpoint, index) => <li key={checkpoint.id || index}><span>{index + 1}</span><div><strong>{checkpoint.location}</strong><small>Checkpoint {index + 1}</small></div>{index === trip.checkpoints.length - 1 && <CheckCircle2 size={17} />}</li>)}</ol> : <p className="detail-muted">No checkpoints were recorded for this trip.</p>}
+          {trip.checkpoints?.length ? <ol className="checkpoint-list">{trip.checkpoints.map((checkpoint, index) => <li key={checkpoint.id || index}><span>{index + 1}</span><div><strong>{checkpoint.location}</strong><small>Checkpoint {index + 1}</small></div> {(cancelledCheckpointIds.includes(checkpoint.id)) && <CheckCircle2 size={17} aria-label="Selected as reached during cancellation" />}</li>)}</ol> : <p className="detail-muted">No checkpoints were recorded for this trip.</p>}
           <div className="detail-meta">Recorded by <strong>{trip.recorded_by || 'Unknown'}</strong></div>
         </article>
       </section>
