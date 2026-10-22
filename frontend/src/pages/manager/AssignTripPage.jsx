@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Clock3, GitFork, LoaderCircle,
-  MapPin, RefreshCw, Route, ShieldCheck, Truck, UserRound,
+  MapPin, RefreshCw, Route, Search, ShieldCheck, Truck, UserRound,
 } from 'lucide-react';
 import { assignTrip, getAssignmentDetails, listTripRequests } from '../../api/tripRequests.api.js';
 import './assign-trip.css';
@@ -20,6 +20,9 @@ export default function AssignTripPage() {
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [selectedDriver, setSelectedDriver] = useState('');
   const [resourceTab, setResourceTab] = useState('vehicle');
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('');
+  const [fuelTypeFilter, setFuelTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -38,6 +41,9 @@ export default function AssignTripPage() {
         setSelectedVehicle('');
         setSelectedDriver('');
         setResourceTab('vehicle');
+        setVehicleSearch('');
+        setVehicleTypeFilter('');
+        setFuelTypeFilter('');
       }
     } catch (err) {
       setError(err.message || 'Could not load assignment information.');
@@ -119,6 +125,22 @@ export default function AssignTripPage() {
   const request = data?.request;
   if (!request) return <div className="assign-state assign-state--error">{error || 'Trip request not found.'}<button className="assign-button" onClick={() => navigate('/manager/queue')}>Back to Dispatch Queue</button></div>;
 
+  const vehicleTypes = [...new Set(data.vehicles.map((vehicle) => String(vehicle.vehicle_type || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const fuelTypes = [...new Set(data.vehicles.map((vehicle) => String(vehicle.fuel_type || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const normalizedVehicleSearch = vehicleSearch.trim().toLowerCase();
+  const filteredVehicles = data.vehicles.filter((vehicle) => {
+    const searchableText = [
+      vehicle.plate_number,
+      vehicle.brand_name,
+      vehicle.model_name,
+      getVehicleName(vehicle),
+      vehicle.vehicle_type,
+      vehicle.fuel_type,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return (!normalizedVehicleSearch || searchableText.includes(normalizedVehicleSearch))
+      && (!vehicleTypeFilter || String(vehicle.vehicle_type || '') === vehicleTypeFilter)
+      && (!fuelTypeFilter || String(vehicle.fuel_type || '') === fuelTypeFilter);
+  });
   const selectedVehicleInfo = data.vehicles.find((vehicle) => String(vehicle.id) === selectedVehicle);
   const vehicleDisplayName = getVehicleName
   const selectedDriverInfo = data.drivers.find((driver) => String(driver.id) === selectedDriver);
@@ -153,11 +175,34 @@ export default function AssignTripPage() {
           <button type="button" role="tab" aria-selected={resourceTab === 'driver'} className={`assign-tab ${resourceTab === 'driver' ? 'is-active' : ''}`} onClick={() => setResourceTab('driver')}>Driver <span>{data.drivers.length}</span></button>
         </div>
         {resourceTab === 'vehicle' ? (
-          <div className="assign-table-wrap" role="tabpanel">
+          <div role="tabpanel">
+            <div className="assign-vehicle-filters" aria-label="Filter available vehicles">
+              <div className="assign-vehicle-filter-field assign-vehicle-filter-search">
+                <label htmlFor="assign-vehicle-search">Search vehicles</label>
+                <div className="assign-vehicle-search-input"><Search size={16} aria-hidden="true" /><input id="assign-vehicle-search" type="search" value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)} placeholder="Plate number, make, or model" /></div>
+              </div>
+              <div className="assign-vehicle-filter-field">
+                <label htmlFor="assign-vehicle-type">Vehicle type</label>
+                <select id="assign-vehicle-type" value={vehicleTypeFilter} onChange={(event) => setVehicleTypeFilter(event.target.value)}>
+                  <option value="">All vehicle types</option>
+                  {vehicleTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+              <div className="assign-vehicle-filter-field">
+                <label htmlFor="assign-fuel-type">Fuel type</label>
+                <select id="assign-fuel-type" value={fuelTypeFilter} onChange={(event) => setFuelTypeFilter(event.target.value)}>
+                  <option value="">All fuel types</option>
+                  {fuelTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+              <button type="button" className="assign-filter-reset" onClick={() => { setVehicleSearch(''); setVehicleTypeFilter(''); setFuelTypeFilter(''); }} disabled={!vehicleSearch && !vehicleTypeFilter && !fuelTypeFilter}>Reset filters</button>
+              <span className="assign-filter-result-count">Showing {filteredVehicles.length} of {data.vehicles.length} vehicles</span>
+            </div>
+            <div className="assign-table-wrap">
             <table className="assign-table">
               <thead><tr><th>Vehicle</th><th>Type</th><th>Fuel</th><th>Total seats</th><th>Selection</th></tr></thead>
               <tbody>
-                {data.vehicles.length === 0 ? <tr><td colSpan="5" className="assign-table-empty">No available vehicles found.</td></tr> : data.vehicles.map((vehicle) => {
+                {data.vehicles.length === 0 ? <tr><td colSpan="5" className="assign-table-empty">No available vehicles found.</td></tr> : filteredVehicles.length === 0 ? <tr><td colSpan="5" className="assign-table-empty">No vehicles match these filters. Try changing or resetting your filters.</td></tr> : filteredVehicles.map((vehicle) => {
                   const active = selectedVehicle === String(vehicle.id);
                   return <tr key={vehicle.id} className={active ? 'is-selected' : ''} onClick={() => { if (!unavailableRequest) { setSelectedVehicle(String(vehicle.id)); setResourceTab('driver'); } }} aria-selected={active}>
                     <td><div className="vehicle-name-stack"><strong>{vehicleDisplayName(vehicle)}</strong><small>{vehicle.plate_number}</small></div></td><td>{vehicle.vehicle_type || '—'}</td><td>{vehicle.fuel_type || '—'}</td><td>{vehicle.seat_capacity == null ? <span className="assign-capacity-unknown">Not recorded</span> : <>{vehicle.seat_capacity} total / {Number(vehicle.seat_capacity) - 1} passengers</>}</td><td><button type="button" className={`assign-row-select ${active ? 'is-selected' : ''}`} disabled={unavailableRequest} onClick={(event) => { event.stopPropagation(); setSelectedVehicle(String(vehicle.id)); setResourceTab('driver'); }}>{active ? 'Selected · Continue' : 'Select vehicle'}</button></td>
@@ -165,6 +210,7 @@ export default function AssignTripPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         ) : (
           <div className="assign-table-wrap" role="tabpanel">

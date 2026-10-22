@@ -111,3 +111,49 @@
 
 .assign-passenger-chip { display:inline-flex; align-items:center; padding:5px 9px; border-radius:6px; background:#eef5ff; color:#2454a6; font-size:12px; font-weight:600; }
 .assign-capacity-unknown { color:#a15c00; font-weight:600; }
+
+/* Vehicle filters above the available-vehicle table */
+.assign-vehicle-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.assign-vehicle-filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.assign-vehicle-filter-field label { color: #777382; font-size: 11px; font-weight: 700; letter-spacing: .035em; }
+.assign-vehicle-filter-field input,
+.assign-vehicle-filter-field select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid #dedbe8;
+  border-radius: 5px;
+  background: #fff;
+  color: #292630;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.assign-vehicle-filter-field input:focus,
+.assign-vehicle-filter-field select:focus { border-color: #1553d6; box-shadow: 0 0 0 2px rgba(21,83,214,.1); }
+.assign-vehicle-search-input { position: relative; }
+.assign-vehicle-search-input > svg { position: absolute; top: 11px; left: 10px; color: #898594; pointer-events: none; }
+.assign-vehicle-search-input input { padding-left: 34px; }
+.assign-filter-reset { height: 38px; padding: 0 12px; border: 1px solid #dedbe8; border-radius: 5px; background: #fff; color: #4e4a58; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.assign-filter-reset:hover:not(:disabled) { border-color: #1553d6; color: #1553d6; }
+.assign-filter-reset:disabled { opacity: .45; cursor: not-allowed; }
+.assign-filter-result-count { grid-column: 1 / -1; color: var(--muted); font-size: 11px; margin-top: -3px; }
+@media (max-width: 900px) {
+  .assign-vehicle-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .assign-vehicle-filter-search { grid-column: 1 / -1; }
+  .assign-filter-result-count { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .assign-vehicle-filters { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .assign-vehicle-filter-search, .assign-filter-result-count { grid-column: auto; }
+  .assign-filter-reset { width: 100%; }
+}
