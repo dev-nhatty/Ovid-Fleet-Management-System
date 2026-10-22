@@ -19,7 +19,7 @@ async function requireAuth(req, res, next) {
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, username, role, status FROM users WHERE id = $1',
+      'SELECT id, name, username, role, status, is_higher_officer FROM users WHERE id = $1',
       [userId]
     );
     const user = rows[0];
@@ -36,7 +36,7 @@ async function requireAuth(req, res, next) {
       });
     }
 
-    req.user = user; // { id, name, username, role, status }
+    req.user = { ...user, isHigherOfficer: user.is_higher_officer }; // current database state on every request
     next();
   } catch (err) {
     next(err);

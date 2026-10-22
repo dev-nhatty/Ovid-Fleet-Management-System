@@ -29,3 +29,8 @@ export const updateUserStatus = (id, status) =>
 // Resolves to null on success; the password is never sent back.
 export const resetUserPassword = (id, password) =>
   api(`/users/${id}/password`, { method: 'PUT', body: { password } });
+
+
+// Promote or demote an existing Officer (Manager database role).
+export const updateHigherOfficer = (id, isHigherOfficer) =>
+  api(`/users/${id}/higher-officer`, { method: 'PATCH', body: { isHigherOfficer } });

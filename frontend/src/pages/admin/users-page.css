@@ -30,3 +30,7 @@ select.select { appearance: auto; gap: 0; padding-right: 10px; cursor: pointer; 
 .rp-secret { display: flex; gap: 8px; }
 .rp-secret input { flex: 1; min-width: 0; height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink); font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 15px; letter-spacing: .02em; }
 .rp-secret .btn { flex: none; min-width: 92px; }
+
+.up-higher-badge { display: inline-flex; align-items: center; gap: 4px; margin: 5px 0 0 6px; padding: 3px 7px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.up-higher-badge svg { flex: none; }
+.row-actions { flex-wrap: wrap; }

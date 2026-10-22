@@ -12,7 +12,7 @@ const ROLE_OPTIONS = [
   { value: ROLES.ADMIN, title: 'Admin', text: 'Manages users, vehicles and master data' },
 ];
 
-const EMPTY_FORM = { name: '', phone: '', role: ROLES.MANAGER, username: '', password: '', confirm: '' };
+const EMPTY_FORM = { name: '', phone: '', role: ROLES.MANAGER, isHigherOfficer: false, username: '', password: '', confirm: '' };
 const FIELD_ORDER = ['name', 'phone', 'role', 'username', 'password', 'confirm'];
 
 // Same rules as the backend (users.controller.js). This gives instant
@@ -139,7 +139,7 @@ export default function NewUserPage() {
 
     setSubmitting(true);
     try {
-      const body = { name: values.name, phone: values.phone, role: values.role };
+      const body = { name: values.name, phone: values.phone, role: values.role, isHigherOfficer: values.role === ROLES.MANAGER && values.isHigherOfficer };
       if (!isDriver) {
         body.username = values.username.trim();
         body.password = values.password;
@@ -187,10 +187,10 @@ export default function NewUserPage() {
         <div className="nu-card nu-success" role="status">
           <CircleCheck size={44} className="nu-success__icon" />
           <h2>User created</h2>
-          <p className="muted">{created.name} was added as {ROLE_LABELS[created.role] ?? created.role}.</p>
+          <p className="muted">{created.name} was added as {created.isHigherOfficer ? 'Higher Officer' : (ROLE_LABELS[created.role] ?? created.role)}.</p>
           <dl className="nu-summary">
             <dt>Name</dt><dd>{created.name}</dd>
-            <dt>Role</dt><dd>{ROLE_LABELS[created.role] ?? created.role}</dd>
+            <dt>Role</dt><dd>{created.isHigherOfficer ? 'Higher Officer' : (ROLE_LABELS[created.role] ?? created.role)}</dd>
             <dt>Username</dt><dd>{created.username ?? 'None (does not sign in)'}</dd>
             <dt>Phone</dt><dd>{created.phone ?? 'Not provided'}</dd>
           </dl>
@@ -235,6 +235,14 @@ export default function NewUserPage() {
               </div>
               {errors.role && <p className="nu-error" role="alert"><CircleAlert size={14} /> {errors.role}</p>}
             </fieldset>
+
+            {values.role === ROLES.MANAGER && (
+              <label className="nu-privilege-option">
+                <input type="checkbox" checked={values.isHigherOfficer}
+                  onChange={(e) => setField('isHigherOfficer', e.target.checked)} />
+                <span><strong>Higher Officer access</strong><small>Keep the existing Officer role and grant access to additional supervisory features and reports.</small></span>
+              </label>
+            )}
 
             <hr className="nu-divider" />
 

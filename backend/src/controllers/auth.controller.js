@@ -15,7 +15,7 @@ const MAX_FIELD_LENGTH = 128;
 
 // The only shape of user data that ever leaves the server.
 function publicUser(user) {
-  return { id: user.id, name: user.name, username: user.username, role: user.role };
+  return { id: user.id, name: user.name, username: user.username, role: user.role, isHigherOfficer: Boolean(user.is_higher_officer ?? user.isHigherOfficer) };
 }
 
 function invalidCredentials(res) {
@@ -34,7 +34,7 @@ async function login(req, res, next) {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, username, password_hash, role, status
+      `SELECT id, name, username, password_hash, role, status, is_higher_officer
        FROM users
        WHERE username = $1`,
       [username]

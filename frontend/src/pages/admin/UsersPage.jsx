@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import Pagination from '../../components/Pagination.jsx';
@@ -7,7 +7,7 @@ import StatusChangeDialog from '../../components/StatusChangeDialog.jsx';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES, ROLE_LABELS } from '../../config/roles.js';
-import { listUsers, updateUserStatus, resetUserPassword } from '../../api/users.api.js';
+import { listUsers, updateUserStatus, resetUserPassword, updateHigherOfficer } from '../../api/users.api.js';
 import './users-page.css';
 
 const PAGE_SIZE = 10;
@@ -55,6 +55,7 @@ export default function UsersPage() {
 
   // Reset Password: which row the dialog is open for
   const [resetTarget, setResetTarget] = useState(null);
+  const [privilegeBusyId, setPrivilegeBusyId] = useState(null);
 
   // Wait until typing pauses before asking the server, so a request isn't
   // sent for every keystroke.
@@ -132,6 +133,18 @@ export default function UsersPage() {
   }
 
   const chooseRole = (r) => { setRole(r); setPage(1); };
+
+  async function toggleHigherOfficer(target) {
+    const next = !target.isHigherOfficer;
+    setPrivilegeBusyId(target.id);
+    try {
+      await updateHigherOfficer(target.id, next);
+      setNotice(`${target.name} ${next ? 'was promoted to' : 'no longer has'} Higher Officer access.`);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setNotice(err.status === 409 ? (err.message || 'Only Officer accounts can have Higher Officer access.') : 'Could not update Higher Officer access.');
+    } finally { setPrivilegeBusyId(null); }
+  }
   const chooseStatus = (s) => { setStatus(s); setPage(1); };
 
   const filtersActive = role !== 'All' || status !== 'All' || query !== '';
@@ -166,13 +179,16 @@ export default function UsersPage() {
       <tr key={u.id}>
         <td><div className="person"><span className="avatar">{initials(u.name)}</span><span className="strong">{u.name}</span></div></td>
         <td className="muted">{u.username ?? '—'}</td>
-        <td><span className="chip chip--plain">{ROLE_LABELS[u.role] ?? u.role}</span></td>
+        <td><span className="chip chip--plain">{ROLE_LABELS[u.role] ?? u.role}</span>{u.role === ROLES.MANAGER && u.isHigherOfficer && <span className="up-higher-badge"><ShieldCheck size={12} /> Higher Officer</span>}</td>
         <td><StatusBadge tone={u.status === 'Active' ? 'green' : 'gray'}>{u.status}</StatusBadge></td>
         <td className="ta-right">
           <div className="row-actions">
             <span title={statusBlockedReason(u, me)}>
               <button className="link-btn" disabled={Boolean(statusBlockedReason(u, me))}
                 onClick={() => setStatusTarget(u)}>Change Status</button>
+            {u.role === ROLES.MANAGER && <button className="link-btn" disabled={privilegeBusyId === u.id || u.status !== 'Active'}
+              title={u.status !== 'Active' ? 'Activate the account before changing this privilege' : ''}
+              onClick={() => toggleHigherOfficer(u)}>{privilegeBusyId === u.id ? 'Saving…' : (u.isHigherOfficer ? 'Remove Higher Officer' : 'Make Higher Officer')}</button>}
             </span>
             <span title={resetBlockedReason(u)}>
               <button className="link-btn" disabled={Boolean(resetBlockedReason(u))}

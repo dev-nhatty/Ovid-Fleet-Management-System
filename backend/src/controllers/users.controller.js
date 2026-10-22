@@ -30,6 +30,7 @@ function validateNewUser(body) {
   // role: must be exactly one of the database values
   const role = b.role;
   if (!Object.values(ROLES).includes(role)) fields.role = 'Choose a role.';
+  const isHigherOfficer = role === ROLES.MANAGER && b.isHigherOfficer === true;
 
   // name: trimmed, inner whitespace collapsed
   const name = isString(b.name) ? b.name.trim().replace(/\s+/g, ' ') : '';
@@ -73,7 +74,7 @@ function validateNewUser(body) {
     if (problem) fields.password = problem;
   }
 
-  return { fields, value: { name, phone, role, username, password } };
+  return { fields, value: { name, phone, role, username, password, isHigherOfficer } };
 }
 
 function usernameTaken(res) {
@@ -106,14 +107,15 @@ async function createUser(req, res, next) {
       : null;
 
     const { rows } = await pool.query(
-      `INSERT INTO users (name, phone, username, password_hash, role, status)
-       VALUES ($1, $2, $3, $4, $5, 'Active')
-       RETURNING id, name, phone, username, role, status`,
-      [value.name, value.phone, value.username, passwordHash, value.role]
+      `INSERT INTO users (name, phone, username, password_hash, role, is_higher_officer, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'Active')
+       RETURNING id, name, phone, username, role, is_higher_officer, status`,
+      [value.name, value.phone, value.username, passwordHash, value.role, value.isHigherOfficer]
     );
 
     // The hash is never part of the response.
-    res.status(201).json(rows[0]);
+    const created = rows[0];
+    res.status(201).json({ ...created, isHigherOfficer: Boolean(created.is_higher_officer) });
   } catch (err) {
     // Two admins submitting the same username at the same moment: the
     // UNIQUE constraint is the final referee.
@@ -212,7 +214,7 @@ async function listUsers(req, res, next) {
     const offsetIdx = params.length + 3;
 
     const { rows } = await pool.query(
-      `SELECT id, name, phone, username, role, status,
+      `SELECT id, name, phone, username, role, is_higher_officer, status,
               (role = $${adminIdx} AND status = 'Active' AND
                 (SELECT COUNT(*) FROM users
                   WHERE role = $${adminIdx} AND status = 'Active') = 1
@@ -227,6 +229,7 @@ async function listUsers(req, res, next) {
     const users = rows.map(({ is_last_active_admin, ...u }) => ({
       ...u,
       isLastActiveAdmin: is_last_active_admin,
+      isHigherOfficer: Boolean(u.is_higher_officer),
     }));
 
     res.json({ users, total, page, pageSize: f.pageSize, totalPages });
@@ -427,4 +430,33 @@ async function resetUserPassword(req, res, next) {
   }
 }
 
-module.exports = { createUser, listUsers, updateUserStatus, resetUserPassword, validateNewUser, passwordProblem };
+// PATCH /api/users/:id/higher-officer { isHigherOfficer: boolean }
+// Only the System Administrator can reach this router. The privilege is a
+// flag on Manager, not a separate role, so existing Manager route checks stay intact.
+async function updateHigherOfficer(req, res, next) {
+  const id = parseUserId(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid user id.' });
+  const enabled = req.body && req.body.isHigherOfficer;
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'isHigherOfficer must be true or false.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users
+          SET is_higher_officer = $1
+        WHERE id = $2 AND role = $3
+        RETURNING id, name, phone, username, role, is_higher_officer, status`,
+      [enabled, id, ROLES.MANAGER]
+    );
+    if (!rows[0]) {
+      const found = await pool.query('SELECT id, role FROM users WHERE id = $1', [id]);
+      if (!found.rowCount) return res.status(404).json({ error: 'User not found.' });
+      return res.status(409).json({ error: 'Only an Officer/Manager account can be made a Higher Officer.' });
+    }
+    return res.json({ ...rows[0], isHigherOfficer: Boolean(rows[0].is_higher_officer) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { createUser, listUsers, updateUserStatus, resetUserPassword, updateHigherOfficer, validateNewUser, passwordProblem };
