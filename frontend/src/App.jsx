@@ -21,6 +21,8 @@ import NewUserPage from './pages/admin/NewUserPage.jsx';
 import DepartmentsPage from './pages/admin/DepartmentsPage.jsx';
 import AdminVehiclesPage from './pages/admin/VehiclesPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
+import ReportsPage from './pages/manager/ReportsPage.jsx';
+import ReportDetailPage from './pages/manager/ReportDetailPage.jsx';
 import { ROLES } from './config/roles.js';
 
 export default function App() {
@@ -46,6 +48,10 @@ export default function App() {
           <Route path="/manager/trips/:tripId" element={<TripDetailPage />} />
           <Route path="/manager/fuel-logs" element={<FuelLogsPage />} />
           <Route path="/manager/record-fuel" element={<RecordFuelPage />} />
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER]} higherOfficerOnly />}>
+            <Route path="/manager/reports" element={<ReportsPage />} />
+            <Route path="/manager/reports/:reportKey" element={<ReportDetailPage />} />
+          </Route>
         </Route>
       </Route>
 

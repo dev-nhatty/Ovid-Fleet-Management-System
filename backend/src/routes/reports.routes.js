@@ -1,0 +1,11 @@
+const express = require('express');
+const { requireRole } = require('../middleware/role.middleware');
+const { requireHigherOfficer } = require('../middleware/higherOfficer.middleware');
+const { ROLES } = require('../config/roles');
+const { getReportOptions, getReport, exportReport } = require('../controllers/reports.controller');
+const router = express.Router();
+router.use(requireRole(ROLES.MANAGER), requireHigherOfficer);
+router.get('/options', getReportOptions);
+router.get('/:reportKey/export', exportReport);
+router.get('/:reportKey', getReport);
+module.exports = router;

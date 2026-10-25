@@ -10,7 +10,7 @@ import LoadingScreen from './LoadingScreen.jsx';
 // Signed in, wrong role -> that person's own home page.
 // This only decides what the browser shows. The backend's requireRole()
 // is what actually protects the data.
-export default function ProtectedRoute({ allowedRoles }) {
+export default function ProtectedRoute({ allowedRoles, higherOfficerOnly = false }) {
   const { user, status } = useAuth();
   const location = useLocation();
 
@@ -20,7 +20,7 @@ export default function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  if (!allowedRoles.includes(user.role) || (higherOfficerOnly && !(user.role === 'Manager' && user.isHigherOfficer === true))) {
     const home = ROLE_HOME[user.role];
     if (!home) return <p role="alert">Your account doesn't have access to this application.</p>;
     return <Navigate to={home} replace />;
