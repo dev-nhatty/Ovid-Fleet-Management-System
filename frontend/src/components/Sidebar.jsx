@@ -1,12 +1,20 @@
 import { NavLink } from 'react-router-dom';
-import { Truck, ChevronsUpDown, LogOut } from 'lucide-react';
+import { Truck, ChevronsUpDown, LogOut, ChartNoAxesColumn, UserPlus } from 'lucide-react';
 import { NAV } from './navConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLE_LABELS } from '../config/roles.js';
 
 export default function Sidebar() {
   const { user, signOut } = useAuth();
-  const sections = NAV[user.role] ?? [];
+  const baseSections = NAV[user.role] ?? [];
+  const sections = user.role === 'Manager' && user.isHigherOfficer
+    ? [...baseSections, {
+      title: 'Management', items: [
+        { label: 'Reports', to: '/manager/reports', icon: ChartNoAxesColumn },
+        { label: 'Create Users', to: '/manager/create-users', icon: UserPlus },
+      ]
+    }]
+    : baseSections;
   const initials = user.name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('');
 
   return (
@@ -35,7 +43,7 @@ export default function Sidebar() {
         <span className="avatar">{initials}</span>
         <div className="sidebar__user-text">
           <div className="strong">{user.name}</div>
-          <div className="muted small">{ROLE_LABELS[user.role] ?? user.role}</div>
+          <div className="muted small">{user.role === 'Manager' && user.isHigherOfficer ? 'Higher Officer' : (ROLE_LABELS[user.role] ?? user.role)}</div>
         </div>
         <button className="icon-btn" aria-label="Sign out" onClick={signOut}><LogOut size={16} /></button>
       </div>
