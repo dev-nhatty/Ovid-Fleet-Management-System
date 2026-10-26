@@ -14,6 +14,7 @@ const { errorHandler } = require('./middleware/error.middleware');
 const authRoutes = require('./routes/auth.routes');
 const authCheckRoutes = require('./routes/authCheck.routes'); // temporary
 const usersRoutes = require('./routes/users.routes');
+const managedOfficersRoutes = require('./routes/managedOfficers.routes');
 const departmentsRoutes = require('./routes/departments.routes');
 const adminVehiclesRoutes = require('./routes/adminVehicles.routes');
 const tripRequestsRoutes = require('./routes/tripRequests.routes');
@@ -22,7 +23,6 @@ const driversRoutes = require('./routes/drivers.routes');
 const tripsRoutes = require('./routes/trips.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const fuelLogsRoutes = require('./routes/fuelLogs.routes');
-const reportsRoutes = require('./routes/reports.routes');
 
 if (!process.env.SESSION_SECRET) {
   // Fail at startup, not on the first login.
@@ -78,6 +78,12 @@ app.use('/api', requireAuth);
 app.use('/api/auth-check', authCheckRoutes); // temporary
 
 app.use('/api/users', requireRole(ROLES.ADMIN), usersRoutes);
+app.use('/api/manager/officers', (req, res, next) => {
+  if (req.user.role !== ROLES.MANAGER || req.user.isHigherOfficer !== true) {
+    return res.status(403).json({ error: 'Higher Officer access required.' });
+  }
+  next();
+}, managedOfficersRoutes);
 app.use('/api/departments', requireRole(ROLES.ADMIN), departmentsRoutes);
 app.use('/api/admin/vehicles', requireRole(ROLES.ADMIN), adminVehiclesRoutes);
 app.use('/api/trip-requests', tripRequestsRoutes);
@@ -86,7 +92,6 @@ app.use('/api/drivers', driversRoutes);
 app.use('/api/trips', tripsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/fuel-logs', fuelLogsRoutes);
-app.use('/api/reports', reportsRoutes);
 
 // Real routes go here, each narrowed to the roles that may use it:
 // app.use('/api/trip-requests', requireRole(ROLES.MANAGER), tripRequestsRoutes);

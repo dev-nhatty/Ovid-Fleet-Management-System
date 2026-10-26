@@ -11,7 +11,7 @@ export default function Sidebar() {
     ? [...baseSections, {
       title: 'Management', items: [
         { label: 'Reports', to: '/manager/reports', icon: ChartNoAxesColumn },
-        { label: 'Create Users', to: '/manager/create-users', icon: UserPlus },
+        { label: 'Officers', to: '/manager/officers', icon: UserPlus },
       ]
     }]
     : baseSections;

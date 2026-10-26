@@ -459,4 +459,83 @@ async function updateHigherOfficer(req, res, next) {
   }
 }
 
-module.exports = { createUser, listUsers, updateUserStatus, resetUserPassword, updateHigherOfficer, validateNewUser, passwordProblem };
+
+
+// Higher Officer management: only create/list ordinary Officer (Manager) accounts.
+async function listManagedOfficers(req, res, next) {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+    const status = typeof req.query.status === 'string' ? req.query.status : '';
+    if (status && !['Active', 'Inactive'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be Active or Inactive.' });
+    }
+    const params = [];
+    const clauses = [`role = $${params.push(ROLES.MANAGER)}`];
+    if (status) clauses.push(`status = $${params.push(status)}`);
+    if (q) clauses.push(`(name ILIKE $${params.push('%' + q.replace(/[\\%_]/g, '\\$&') + '%')} OR username ILIKE $${params.length})`);
+    const { rows } = await pool.query(
+      `SELECT id, name, phone, username, role, status, is_higher_officer
+         FROM users WHERE ${clauses.join(' AND ')}
+        ORDER BY name ASC`,
+      params
+    );
+    res.json({ officers: rows.map((u) => ({ ...u, isHigherOfficer: Boolean(u.is_higher_officer) })) });
+  } catch (err) { next(err); }
+}
+
+async function createManagedOfficer(req, res, next) {
+  const body = req.body || {};
+  const errors = {};
+  const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+  const phoneRaw = typeof body.phone === 'string' ? body.phone.trim() : '';
+  const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+  if (name.length < 2 || name.length > 150) errors.name = 'Enter a full name (2–150 characters).';
+  let phone = null;
+  if (phoneRaw) {
+    const digits = phoneRaw.replace(/\D/g, '');
+    if (!/^\+?[0-9][0-9\s-]*$/.test(phoneRaw) || digits.length < 7 || digits.length > 15 || phoneRaw.length > 30) errors.phone = 'Enter a valid phone number.';
+    else phone = phoneRaw;
+  }
+  if (!/^[a-z0-9._-]{3,50}$/.test(username)) errors.username = 'Use 3–50 lowercase letters, numbers, dots, dashes or underscores.';
+  if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
+  else if (Buffer.byteLength(password, 'utf8') > 72) errors.password = 'Password must be at most 72 bytes.';
+  if (body.confirmPassword !== password) errors.confirmPassword = "Passwords don't match.";
+  if (Object.keys(errors).length) return res.status(400).json({ error: 'Please correct the highlighted fields.', fields: errors });
+  try {
+    const dup = await pool.query('SELECT 1 FROM users WHERE LOWER(username) = $1', [username]);
+    if (dup.rowCount) return res.status(409).json({ error: 'Username already taken.', fields: { username: 'This username is already taken.' } });
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    const { rows } = await pool.query(
+      `INSERT INTO users (name, phone, username, password_hash, role, is_higher_officer, status)
+       VALUES ($1, $2, $3, $4, $5, FALSE, 'Active')
+       RETURNING id, name, phone, username, role, status, is_higher_officer`,
+      [name, phone, username, hash, ROLES.MANAGER]
+    );
+    const u = rows[0];
+    res.status(201).json({ ...u, isHigherOfficer: false });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Username already taken.', fields: { username: 'This username is already taken.' } });
+    next(err);
+  }
+}
+
+async function updateManagedOfficerStatus(req, res, next) {
+  const id = Number.parseInt(req.params.id, 10);
+  const status = req.body && req.body.status;
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid officer id.' });
+  if (!['Active', 'Inactive'].includes(status)) return res.status(400).json({ error: 'Status must be Active or Inactive.' });
+  if (String(req.user.id) === String(id) && status === 'Inactive') return res.status(409).json({ error: 'You cannot deactivate your own account.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET status = $1
+        WHERE id = $2 AND role = $3 AND is_higher_officer = FALSE
+        RETURNING id, name, phone, username, role, status, is_higher_officer`,
+      [status, id, ROLES.MANAGER]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Officer not found or cannot be managed from this page.' });
+    res.json({ ...rows[0], isHigherOfficer: false });
+  } catch (err) { next(err); }
+}
+
+module.exports = { createUser, listUsers, updateUserStatus, resetUserPassword, updateHigherOfficer, listManagedOfficers, createManagedOfficer, updateManagedOfficerStatus, validateNewUser, passwordProblem };

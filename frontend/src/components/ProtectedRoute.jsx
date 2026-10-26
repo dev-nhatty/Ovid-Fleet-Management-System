@@ -20,7 +20,7 @@ export default function ProtectedRoute({ allowedRoles, higherOfficerOnly = false
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (!allowedRoles.includes(user.role) || (higherOfficerOnly && !(user.role === 'Manager' && user.isHigherOfficer === true))) {
+  if (!allowedRoles.includes(user.role) || (higherOfficerOnly && user.isHigherOfficer !== true)) {
     const home = ROLE_HOME[user.role];
     if (!home) return <p role="alert">Your account doesn't have access to this application.</p>;
     return <Navigate to={home} replace />;
