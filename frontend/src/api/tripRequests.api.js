@@ -9,8 +9,9 @@ export async function createTripRequest(data) {
   return api('/trip-requests', { method: 'POST', body: data });
 }
 
-export async function listTripRequests({ page = 1, pageSize = 10 } = {}) {
-  return api(`/trip-requests?page=${page}&pageSize=${pageSize}`);
+export async function listTripRequests({ page = 1, pageSize = 10, status = 'Pending' } = {}) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), status });
+  return api(`/trip-requests?${params.toString()}`);
 }
 
 export async function getAssignmentDetails(requestId) {

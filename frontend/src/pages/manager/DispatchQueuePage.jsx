@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Flag, Truck, Search, MapPin, ArrowRight, ArrowLeftRight, GitFork, CheckCircle2, X } from 'lucide-react';
+import { Plus, Truck, Search, MapPin, ArrowRight, ArrowLeftRight, GitFork, CheckCircle2, X, Clock } from 'lucide-react';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import { listTripRequests } from '../../api/tripRequests.api.js';
@@ -11,7 +11,11 @@ const initials = (name = '') => name.replace('Dr. ', '').split(' ').filter(Boole
 
 function Status({ status }) {
   if (status === 'Assigned') return <StatusBadge tone="blue">Assigned</StatusBadge>;
+  if (status === 'In Progress') return <StatusBadge tone="blue">In Progress</StatusBadge>;
+  if (status === 'Completed') return <StatusBadge tone="green">Completed</StatusBadge>;
   if (status === 'Cancelled') return <StatusBadge tone="red">Cancelled</StatusBadge>;
+  if (status === 'Rejected') return <StatusBadge tone="red">Rejected</StatusBadge>;
+  if (status === 'Approved') return <StatusBadge tone="green">Approved</StatusBadge>;
   return <StatusBadge tone="gray">Pending</StatusBadge>;
 }
 
@@ -24,26 +28,29 @@ export default function DispatchQueuePage() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState({ pendingRequests: 0, availableVehicles: 0 });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [tripFilter, setTripFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('Pending');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listTripRequests({ page, pageSize: 10 })
+    listTripRequests({ page, pageSize: 10, status: statusFilter })
       .then((result) => {
         if (cancelled) return;
         setRequests(result.requests || []);
         setTotal(result.total || 0);
         setPages(result.totalPages || 1);
+        setSummary(result.summary || { pendingRequests: 0, availableVehicles: 0 });
         setLoadError('');
       })
       .catch((err) => { if (!cancelled) setLoadError(err.message || 'Could not load trip requests.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, location.key]);
+  }, [page, statusFilter, location.key]);
 
   // Consume the one-time navigation state so refreshes do not replay the toast.
   useEffect(() => {
@@ -101,21 +108,34 @@ export default function DispatchQueuePage() {
       <div className="stat-row">
         <div className="stat">
           <div className="stat__label">VEHICLES STANDBY <Truck size={16} /></div>
-          <div className="stat__value">— <span className="muted small">availability integration pending</span></div>
-          <div className="progress"><span style={{ width: '0%' }} /></div>
+          <div className="stat__value">{loading ? '—' : summary.availableVehicles} <span className="muted small">available vehicles</span></div>
+          <div className="progress"><span style={{ width: summary.availableVehicles > 0 ? '100%' : '0%' }} /></div>
+          <div className="small muted">Active vehicles not currently assigned to an active trip.</div>
         </div>
         <div className="stat">
-          <div className="stat__label">PRIORITY FLAGGED <Flag size={16} className="red" /></div>
-          <div className="stat__value">0 Trips <span className="red small strong">Needs Attention</span></div>
-          <div className="small muted">No priority flag field is configured yet.</div>
+          <div className="stat__label">PENDING REQUESTS <Clock size={16} /></div>
+          <div className="stat__value">{loading ? '—' : summary.pendingRequests} <span className="muted small">awaiting review</span></div>
+          <div className="small muted">Requests that have not yet been assigned.</div>
         </div>
       </div>
 
-      <div className="toolbar">
-        <div className="segmented">
-          {['All', 'One-way', 'Round Trip', 'With Checkpoints'].map((type) => (
-            <button type="button" key={type} className={tripFilter === type ? 'is-active' : ''} onClick={() => setTripFilter(type)}>{type}</button>
-          ))}
+      <div className="toolbar queue-toolbar">
+        <div className="queue-filters">
+          <label className="queue-status-filter">Status
+            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+              <option value="Pending">Pending</option>
+              <option value="Assigned">Assigned</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="All">All statuses</option>
+            </select>
+          </label>
+          <div className="segmented">
+            {['All', 'One-way', 'Round Trip', 'With Checkpoints'].map((type) => (
+              <button type="button" key={type} className={tripFilter === type ? 'is-active' : ''} onClick={() => setTripFilter(type)}>{type}</button>
+            ))}
+          </div>
         </div>
         <div className="search search--filter">
           <Search size={15} />
@@ -129,7 +149,7 @@ export default function DispatchQueuePage() {
           <tbody>
             {loading ? <tr><td colSpan="6">Loading trip requests…</td></tr>
               : loadError ? <tr><td colSpan="6" className="red">{loadError}</td></tr>
-                : visible.length === 0 ? <tr><td colSpan="6">No matching trip requests. Use New Request to create one.</td></tr>
+                : visible.length === 0 ? <tr><td colSpan="6">{`No ${statusFilter === 'All' ? '' : statusFilter.toLowerCase() + ' '}requests match these filters. Use New Request to create one.`}</td></tr>
                   : visible.map((r) => {
                     const TripIcon = TRIP_ICON[r.trip_type] || ArrowRight;
                     const requested = new Date(r.requested_at);

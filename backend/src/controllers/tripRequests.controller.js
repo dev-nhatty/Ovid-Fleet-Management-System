@@ -30,15 +30,44 @@ async function searchEmployees(req, res, next) {
 async function listTripRequests(req, res, next) {
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const pageSize = Math.min(50, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 10));
+  const requestedStatus = str(req.query.status) || 'Pending';
+  const allowedStatuses = ['All', 'Pending', 'Assigned', 'In Progress', 'Completed', 'Cancelled'];
+  if (!allowedStatuses.includes(requestedStatus)) {
+    return res.status(400).json({ error: 'Choose a valid trip request status.' });
+  }
+  const statusCondition = `CASE WHEN t.id IS NOT NULL THEN t.status ELSE tr.status END`;
+  const statusParams = requestedStatus === 'All' ? [] : [requestedStatus];
+  const statusWhere = requestedStatus === 'All' ? '' : `WHERE ${statusCondition} = $1`;
   try {
-    const count = await pool.query('SELECT COUNT(*)::int AS total FROM trip_requests');
+    const [count, pendingCount, vehicles] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM trip_requests tr
+           LEFT JOIN trips t ON t.trip_request_id = tr.id
+           ${statusWhere}`,
+        statusParams
+      ),
+      pool.query(`SELECT COUNT(*)::int AS total FROM trip_requests WHERE status = 'Pending'`),
+      pool.query(
+        `SELECT COUNT(*)::int AS available
+           FROM vehicles v
+          WHERE v.status = 'Active'
+            AND NOT EXISTS (
+              SELECT 1 FROM trips t
+               WHERE t.vehicle_id = v.id AND t.status IN ('Assigned', 'In Progress')
+            )`
+      ),
+    ]);
     const total = count.rows[0].total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const currentPage = Math.min(page, totalPages);
+    const limitParam = statusParams.length + 1;
+    const offsetParam = statusParams.length + 2;
     const { rows } = await pool.query(
       `SELECT tr.id, tr.employee_id, e.name AS employee_name, d.name AS department,
-              tr.additional_passenger_count, tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type, tr.status, tr.requested_at,
-              tr.recorded_by_user_id, t.id AS trip_id, t.assigned_at,
+              tr.additional_passenger_count, tr.origin, COALESCE(tr.destination, (SELECT tc2.location FROM trip_checkpoints tc2 WHERE tc2.trip_request_id = tr.id ORDER BY tc2.sequence_order DESC LIMIT 1)) AS destination, tr.trip_type,
+              tr.status AS request_status, ${statusCondition} AS status, tr.requested_at,
+              tr.recorded_by_user_id, t.id AS trip_id, t.status AS trip_status, t.assigned_at,
               COALESCE(json_agg(json_build_object('id', tc.id, 'location', tc.location,
                 'sequenceOrder', tc.sequence_order)
                 ORDER BY tc.sequence_order) FILTER (WHERE tc.id IS NOT NULL), '[]') AS checkpoints
@@ -47,12 +76,23 @@ async function listTripRequests(req, res, next) {
          LEFT JOIN departments d ON d.id = e.department_id
          LEFT JOIN trips t ON t.trip_request_id = tr.id
          LEFT JOIN trip_checkpoints tc ON tc.trip_request_id = tr.id
-        GROUP BY tr.id, e.name, d.name, t.id, t.assigned_at
+         ${statusWhere}
+        GROUP BY tr.id, e.name, d.name, t.id, t.status, t.assigned_at
         ORDER BY COALESCE(t.assigned_at, tr.requested_at) DESC, tr.id DESC
-        LIMIT $1 OFFSET $2`,
-      [pageSize, (currentPage - 1) * pageSize]
+        LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      [...statusParams, pageSize, (currentPage - 1) * pageSize]
     );
-    res.json({ requests: rows, total, page: currentPage, pageSize, totalPages });
+    res.json({
+      requests: rows,
+      total,
+      page: currentPage,
+      pageSize,
+      totalPages,
+      summary: {
+        pendingRequests: pendingCount.rows[0].total,
+        availableVehicles: vehicles.rows[0].available,
+      },
+    });
   } catch (err) { next(err); }
 }
 
@@ -129,7 +169,7 @@ async function createTripRequest(req, res, next) {
       checkpoints: normalizedStops.map((s, i) => ({ sequenceOrder: i + 1, ...s })),
     });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    try { await client.query('ROLLBACK'); } catch { }
     next(err);
   } finally {
     client.release();
