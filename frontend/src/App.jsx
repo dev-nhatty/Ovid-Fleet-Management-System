@@ -23,6 +23,8 @@ import AdminVehiclesPage from './pages/admin/VehiclesPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import ManagedOfficersPage from './pages/manager/ManagedOfficersPage.jsx';
 import NewManagedOfficerPage from './pages/manager/NewManagedOfficerPage.jsx';
+import ReportsPage from './pages/manager/ReportsPage.jsx';
+import ReportDetailPage from './pages/manager/ReportDetailPage.jsx';
 import { ROLES } from './config/roles.js';
 
 export default function App() {
@@ -51,6 +53,8 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER]} higherOfficerOnly />}>
             <Route path="/manager/officers" element={<ManagedOfficersPage />} />
             <Route path="/manager/officers/new" element={<NewManagedOfficerPage />} />
+            <Route path="/manager/reports" element={<ReportsPage />} />
+            <Route path="/manager/reports/:reportKey" element={<ReportDetailPage />} />
           </Route>
         </Route>
       </Route>
