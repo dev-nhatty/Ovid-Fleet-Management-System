@@ -2,9 +2,16 @@ const pool = require('../db/pool');
 
 async function getDashboard(req, res, next) {
   try {
-    const [requests, trips, vehicles, drivers, fuel, recent] = await Promise.all([
+    const [requests, trips, driverRequests, vehicles, drivers, fuel, recent] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS pending FROM trip_requests WHERE status = 'Pending'`),
-      pool.query(`SELECT COUNT(*)::int AS active FROM trips WHERE status IN ('Assigned', 'In Progress')`),
+      pool.query(`SELECT
+                    COUNT(*) FILTER (WHERE status IN ('Assigned', 'In Progress'))::int AS active,
+                    COUNT(*) FILTER (WHERE status = 'In Progress')::int AS in_progress
+                  FROM trips`),
+      pool.query(`SELECT COUNT(*)::int AS total
+                    FROM trips
+                   WHERE (status = 'Assigned' AND driver_start_requested_at IS NOT NULL)
+                      OR (status = 'In Progress' AND driver_finish_requested_at IS NOT NULL)`),
       pool.query(`SELECT COUNT(*)::int AS available FROM vehicles v WHERE v.status = 'Active' AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.vehicle_id = v.id AND t.status IN ('Assigned', 'In Progress'))`),
       pool.query(`SELECT COUNT(*)::int AS available FROM users u WHERE u.role = 'Driver' AND u.status = 'Active' AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.driver_id = u.id AND t.status IN ('Assigned', 'In Progress'))`),
       pool.query(`SELECT COALESCE(SUM(liters), 0)::numeric(12,2) AS liters, COUNT(*)::int AS transactions FROM fuel_transactions WHERE fueled_date >= date_trunc('month', CURRENT_DATE)::date AND fueled_date < (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month')::date`),
@@ -25,6 +32,9 @@ async function getDashboard(req, res, next) {
     res.json({
       pendingRequests: requests.rows[0].pending,
       activeTrips: trips.rows[0].active,
+      inProgressTrips: trips.rows[0].in_progress,
+      tripsRequiringUpdates: trips.rows[0].active,
+      driverRequests: driverRequests.rows[0].total,
       availableVehicles: vehicles.rows[0].available,
       availableDrivers: drivers.rows[0].available,
       fuelThisMonth: Number(fuel.rows[0].liters),
