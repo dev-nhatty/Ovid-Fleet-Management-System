@@ -102,9 +102,11 @@ export default function TripDetailPage() {
         <div className="trip-lifecycle-buttons">
           {canStart && <button className="lifecycle-btn lifecycle-start" onClick={() => changeStatus('In Progress')} disabled={savingStatus}><Play size={15} /> Start Trip</button>}
           {canComplete && <button className="lifecycle-btn lifecycle-complete" onClick={() => changeStatus('Completed')} disabled={savingStatus}><CheckCircle2 size={16} /> Complete Trip</button>}
-           {canCancel && <button className="lifecycle-btn lifecycle-cancel" onClick={openCancellationFlow} disabled={savingStatus}><Ban size={15} /> Cancel Trip</button>}
+          {canCancel && <button className="lifecycle-btn lifecycle-cancel" onClick={openCancellationFlow} disabled={savingStatus}><Ban size={15} /> Cancel Trip</button>}
         </div>
       </section>}
+      {trip.status === 'Assigned' && trip.driver_start_requested_at && <div className="trip-action-feedback trip-action-success" role="status">Driver requested to start this trip at {date(trip.driver_start_requested_at)}. Confirm by selecting <strong>Start Trip</strong> below.</div>}
+      {trip.status === 'In Progress' && trip.driver_finish_requested_at && <div className="trip-action-feedback trip-action-success" role="status">Driver reported arrival at {date(trip.driver_finish_requested_at)}. Confirm official completion using <strong>Complete Trip</strong> below.</div>}
       {actionError && <div className="trip-action-feedback trip-action-error" role="alert">{actionError}</div>}
       {actionMessage && <div className="trip-action-feedback trip-action-success" role="status">{actionMessage}</div>}
 

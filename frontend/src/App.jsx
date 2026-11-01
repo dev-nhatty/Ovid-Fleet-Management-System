@@ -25,6 +25,10 @@ import ManagedOfficersPage from './pages/manager/ManagedOfficersPage.jsx';
 import NewManagedOfficerPage from './pages/manager/NewManagedOfficerPage.jsx';
 import ReportsPage from './pages/manager/ReportsPage.jsx';
 import ReportDetailPage from './pages/manager/ReportDetailPage.jsx';
+import DriverTodayPage from './pages/driver/DriverTodayPage.jsx';
+import DriverTripsPage from './pages/driver/DriverTripsPage.jsx';
+import DriverDirectoryPage from './pages/driver/DriverDirectoryPage.jsx';
+import DriverAccountPage from './pages/driver/DriverAccountPage.jsx';
 import { ROLES } from './config/roles.js';
 
 export default function App() {
@@ -56,6 +60,16 @@ export default function App() {
             <Route path="/manager/reports" element={<ReportsPage />} />
             <Route path="/manager/reports/:reportKey" element={<ReportDetailPage />} />
           </Route>
+        </Route>
+      </Route>
+
+      {/* Driver pages */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.DRIVER]} />}>
+        <Route element={<AppLayout />}>
+          <Route path="/driver/today" element={<DriverTodayPage />} />
+          <Route path="/driver/trips" element={<DriverTripsPage />} />
+          <Route path="/driver/drivers" element={<DriverDirectoryPage />} />
+          <Route path="/driver/account" element={<DriverAccountPage />} />
         </Route>
       </Route>
 

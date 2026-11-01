@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, CircleAlert, CircleCheck, Info } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, CircleAlert, CircleCheck } from 'lucide-react';
 import { ROLES, ROLE_LABELS } from '../../config/roles.js';
 import { createUser } from '../../api/users.api.js';
 import './new-user.css';
@@ -8,7 +8,7 @@ import './new-user.css';
 // What each role card says. `value` is the exact string stored in the database.
 const ROLE_OPTIONS = [
   { value: ROLES.MANAGER, title: 'Officer', text: 'Handles trip requests, dispatch and fuel records' },
-  { value: ROLES.DRIVER, title: 'Driver', text: 'Assigned to trips. Contacted by phone and does not sign in' },
+  { value: ROLES.DRIVER, title: 'Driver', text: 'Signs in to view assignments and submit trip status requests' },
   { value: ROLES.ADMIN, title: 'Admin', text: 'Manages users, vehicles and master data' },
 ];
 
@@ -36,7 +36,7 @@ function validate(v) {
     }
   }
 
-  if (!isDriver) {
+  {
     const username = v.username.trim();
     if (!username) errors.username = 'Username is required.';
     else if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
@@ -140,10 +140,8 @@ export default function NewUserPage() {
     setSubmitting(true);
     try {
       const body = { name: values.name, phone: values.phone, role: values.role, isHigherOfficer: values.role === ROLES.MANAGER && values.isHigherOfficer };
-      if (!isDriver) {
-        body.username = values.username.trim();
-        body.password = values.password;
-      }
+      body.username = values.username.trim();
+      body.password = values.password;
       const user = await createUser(body);
       setCreated(user);
     } catch (err) {
@@ -179,7 +177,7 @@ export default function NewUserPage() {
         <div>
           <div className="eyebrow">ADMINISTRATION</div>
           <h1>New user</h1>
-          <p className="muted lead">Create a sign-in account or register a driver</p>
+          <p className="muted lead">Create an account for an officer or driver</p>
         </div>
       </div>
 
@@ -191,7 +189,7 @@ export default function NewUserPage() {
           <dl className="nu-summary">
             <dt>Name</dt><dd>{created.name}</dd>
             <dt>Role</dt><dd>{created.isHigherOfficer ? 'Higher Officer' : (ROLE_LABELS[created.role] ?? created.role)}</dd>
-            <dt>Username</dt><dd>{created.username ?? 'None (does not sign in)'}</dd>
+            <dt>Username</dt><dd>{created.username ?? '—'}</dd>
             <dt>Phone</dt><dd>{created.phone ?? 'Not provided'}</dd>
           </dl>
           <div className="nu-actions">
@@ -246,36 +244,29 @@ export default function NewUserPage() {
 
             <hr className="nu-divider" />
 
-            {isDriver ? (
-              <div className="nu-note">
-                <Info size={16} />
-                <span>Drivers don't sign in, so no username or password is needed. They are assigned to trips and contacted by phone.</span>
-              </div>
-            ) : (
-              <>
-                <h2 className="nu-section">Sign-in credentials</h2>
+            <>
+              <h2 className="nu-section">Sign-in credentials</h2>
 
-                <Field id="nu-username" label="Username" required
-                  hint="Used to sign in. Lowercase letters, numbers, dots, dashes and underscores. Must be unique." error={errors.username}>
-                  <input id="nu-username" className={'nu-input' + (errors.username ? ' is-invalid' : '')}
-                    value={values.username} onChange={(e) => setField('username', e.target.value.toLowerCase())}
-                    autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={50}
-                    aria-invalid={!!errors.username} aria-describedby="nu-username-msg" />
-                </Field>
+              <Field id="nu-username" label="Username" required
+                hint="Used to sign in. Lowercase letters, numbers, dots, dashes and underscores. Must be unique." error={errors.username}>
+                <input id="nu-username" className={'nu-input' + (errors.username ? ' is-invalid' : '')}
+                  value={values.username} onChange={(e) => setField('username', e.target.value.toLowerCase())}
+                  autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={50}
+                  aria-invalid={!!errors.username} aria-describedby="nu-username-msg" />
+              </Field>
 
-                <Field id="nu-password" label="Password" required hint="At least 8 characters." error={errors.password}>
-                  <PasswordInput id="nu-password" value={values.password} error={errors.password}
-                    onChange={(e) => setField('password', e.target.value)} autoComplete="new-password"
-                    show={showPassword} onToggle={() => setShowPassword((s) => !s)} />
-                </Field>
+              <Field id="nu-password" label="Password" required hint="At least 8 characters." error={errors.password}>
+                <PasswordInput id="nu-password" value={values.password} error={errors.password}
+                  onChange={(e) => setField('password', e.target.value)} autoComplete="new-password"
+                  show={showPassword} onToggle={() => setShowPassword((s) => !s)} />
+              </Field>
 
-                <Field id="nu-confirm" label="Confirm password" required error={errors.confirm}>
-                  <PasswordInput id="nu-confirm" value={values.confirm} error={errors.confirm}
-                    onChange={(e) => setField('confirm', e.target.value)} autoComplete="new-password"
-                    show={showConfirm} onToggle={() => setShowConfirm((s) => !s)} />
-                </Field>
-              </>
-            )}
+              <Field id="nu-confirm" label="Confirm password" required error={errors.confirm}>
+                <PasswordInput id="nu-confirm" value={values.confirm} error={errors.confirm}
+                  onChange={(e) => setField('confirm', e.target.value)} autoComplete="new-password"
+                  show={showConfirm} onToggle={() => setShowConfirm((s) => !s)} />
+              </Field>
+            </>
 
             <div className="nu-actions">
               <button type="button" className="btn nu-btn-outline" onClick={() => navigate('/admin/users')}>Cancel</button>

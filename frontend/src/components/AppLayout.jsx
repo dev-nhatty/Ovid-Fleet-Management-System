@@ -4,7 +4,7 @@ import Topbar from './Topbar.jsx';
 
 export default function AppLayout() {
   const { pathname } = useLocation();
-  const crumb = pathname.startsWith('/admin') ? 'Administration' : 'Dispatch';
+  const crumb = pathname.startsWith('/admin') ? 'Administration' : pathname.startsWith('/driver') ? 'Driver' : 'Dispatch';
 
   return (
     <div className="shell">

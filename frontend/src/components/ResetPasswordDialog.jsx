@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, CircleAlert, CircleCheck, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import '../pages/admin/new-user.css'; // field and input styles shared with the New user form
+import { ROLES } from '../config/roles.js';
 
 // Same rules as the backend (users.controller.js). This gives instant
 // feedback; the server repeats every check because it can't trust the browser.
@@ -38,6 +39,7 @@ function generatePassword(length = 16) {
 // After a successful reset the dialog shows the new password once, with a
 // Copy button, because the administrator has to pass it on to the person.
 export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose }) {
+  const [username, setUsername] = useState(user.username ?? '');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [show, setShow] = useState(false);
@@ -49,11 +51,16 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
   const [copyFailed, setCopyFailed] = useState(false);
 
   const dialogRef = useRef(null);
+  const usernameRef = useRef(null);
   const passwordRef = useRef(null);
   const confirmRef = useRef(null);
   const copyRef = useRef(null);
+  const needsUsername = user.role === ROLES.DRIVER && !user.username;
 
-  useEffect(() => { passwordRef.current?.focus(); }, []);
+  useEffect(() => {
+    if (needsUsername) usernameRef.current?.focus();
+    else passwordRef.current?.focus();
+  }, [needsUsername]);
   // The fields disappear when the reset succeeds; put focus on the next useful thing.
   useEffect(() => { if (done) copyRef.current?.focus(); }, [done]);
 
@@ -106,6 +113,13 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
     if (submitting) return;
 
     const found = {};
+    if (needsUsername) {
+      const cleanUsername = username.trim();
+      if (!cleanUsername) found.username = 'Username is required.';
+      else if (!/^[a-z0-9._-]{3,50}$/.test(cleanUsername)) {
+        found.username = 'Use 3-50 lowercase letters, numbers, dots, dashes or underscores.';
+      }
+    }
     const problem = passwordProblem(password);
     if (problem) found.password = problem;
     if (!confirm) found.confirm = 'Confirm the password.';
@@ -113,15 +127,19 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
 
     setErrors(found);
     setBanner('');
+    if (found.username) { usernameRef.current?.focus(); return; }
     if (found.password) { passwordRef.current?.focus(); return; }
     if (found.confirm) { confirmRef.current?.focus(); return; }
 
     setSubmitting(true);
     try {
-      await onSubmit(user, password);
+      await onSubmit(user, password, needsUsername ? username.trim() : undefined);
       setDone(true);
     } catch (err) {
-      if (err.fields?.password) {
+      if (err.fields?.username) {
+        setErrors({ username: err.fields.username });
+        usernameRef.current?.focus();
+      } else if (err.fields?.password) {
         setErrors({ password: err.fields.password });
         passwordRef.current?.focus();
       } else if (err.status >= 400 && err.status < 500 && err.message) {
@@ -160,7 +178,7 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
               <CircleCheck size={34} className="rp-done__icon" />
               <h2 id="reset-dialog-title">Password reset</h2>
             </div>
-            <p className="up-modal__who"><strong>{user.name}</strong>{user.username && <span className="muted"> · {user.username}</span>}</p>
+            <p className="up-modal__who"><strong>{user.name}</strong><span className="muted"> · {needsUsername ? username : user.username}</span></p>
             <p className="muted rp-text">
               {isSelf
                 ? 'Your other devices were signed out. You stay signed in here.'
@@ -184,7 +202,7 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
         ) : (
           <form onSubmit={handleSubmit} noValidate>
             <h2 id="reset-dialog-title">Reset password</h2>
-            <p className="up-modal__who"><strong>{user.name}</strong>{user.username && <span className="muted"> · {user.username}</span>}</p>
+            <p className="up-modal__who"><strong>{user.name}</strong><span className="muted"> · {needsUsername ? username : user.username}</span></p>
             <p className="muted rp-text">
               {isSelf
                 ? "This is your own account. You'll stay signed in here; your other devices will be signed out."
@@ -192,6 +210,21 @@ export default function ResetPasswordDialog({ user, isSelf, onSubmit, onClose })
             </p>
 
             {banner && <p className="up-modal__error" role="alert"><CircleAlert size={15} /> {banner}</p>}
+
+            {needsUsername && (
+              <div className="nu-field">
+                <label htmlFor="rp-username">Username</label>
+                <input id="rp-username" ref={usernameRef}
+                  className={'nu-input' + (errors.username ? ' is-invalid' : '')}
+                  value={username} autoComplete="off" autoCapitalize="none" spellCheck={false}
+                  maxLength={50}
+                  onChange={(e) => { setUsername(e.target.value.toLowerCase()); clearError('username'); }}
+                  aria-invalid={!!errors.username} aria-describedby="rp-username-msg" />
+                {errors.username
+                  ? <p className="nu-error" id="rp-username-msg" role="alert"><CircleAlert size={14} /> {errors.username}</p>
+                  : <p className="nu-hint" id="rp-username-msg">3-50 lowercase letters, numbers, dots, dashes or underscores. Must be unique.</p>}
+              </div>
+            )}
 
             <div className="nu-field">
               <div className="rp-label-row">

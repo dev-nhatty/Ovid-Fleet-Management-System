@@ -26,9 +26,9 @@ function statusBlockedReason(row, me) {
   return '';
 }
 
-// Same idea for Reset Password. Only accounts that sign in have a password.
+// Only accounts with a username have sign-in credentials to reset.
 function resetBlockedReason(row) {
-  if (row.role === ROLES.DRIVER || !row.username) return "Drivers don't sign in, so they have no password";
+  if (!row.username && row.role !== ROLES.DRIVER) return 'This account has no username or sign-in credentials';
   return '';
 }
 
@@ -186,9 +186,9 @@ export default function UsersPage() {
             <span title={statusBlockedReason(u, me)}>
               <button className="link-btn" disabled={Boolean(statusBlockedReason(u, me))}
                 onClick={() => setStatusTarget(u)}>Change Status</button>
-            {u.role === ROLES.MANAGER && <button className="link-btn" disabled={privilegeBusyId === u.id || u.status !== 'Active'}
-              title={u.status !== 'Active' ? 'Activate the account before changing this privilege' : ''}
-              onClick={() => toggleHigherOfficer(u)}>{privilegeBusyId === u.id ? 'Saving…' : (u.isHigherOfficer ? 'Remove Higher Officer' : 'Make Higher Officer')}</button>}
+              {u.role === ROLES.MANAGER && <button className="link-btn" disabled={privilegeBusyId === u.id || u.status !== 'Active'}
+                title={u.status !== 'Active' ? 'Activate the account before changing this privilege' : ''}
+                onClick={() => toggleHigherOfficer(u)}>{privilegeBusyId === u.id ? 'Saving…' : (u.isHigherOfficer ? 'Remove Higher Officer' : 'Make Higher Officer')}</button>}
             </span>
             <span title={resetBlockedReason(u)}>
               <button className="link-btn" disabled={Boolean(resetBlockedReason(u))}
@@ -257,7 +257,7 @@ export default function UsersPage() {
 
       {resetTarget && (
         <ResetPasswordDialog user={resetTarget} isSelf={Boolean(me && resetTarget.id === me.id)}
-          onSubmit={(target, password) => resetUserPassword(target.id, password)}
+          onSubmit={(target, password, username) => resetUserPassword(target.id, password, username)}
           onClose={closeReset} />
       )}
     </>

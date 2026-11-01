@@ -6,9 +6,8 @@ const ROLES = Object.freeze({
   ADMIN: 'System Administrator',
 });
 
-// Roles allowed to sign in to the web app. Drivers are phoned, not
-// logged in, so a Driver row never gets a session even if someone
-// gives it a username and password by mistake.
-const LOGIN_ROLES = Object.freeze([ROLES.MANAGER, ROLES.ADMIN]);
+// Roles allowed to sign in to the web app. Driver accounts use the same
+// session authentication as officers, but their API routes are restricted.
+const LOGIN_ROLES = Object.freeze([ROLES.MANAGER, ROLES.DRIVER, ROLES.ADMIN]);
 
 module.exports = { ROLES, LOGIN_ROLES };

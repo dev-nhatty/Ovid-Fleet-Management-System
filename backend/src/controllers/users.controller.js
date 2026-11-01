@@ -57,8 +57,7 @@ function validateNewUser(body) {
     }
   }
 
-  // sign-in credentials: only for roles that can sign in. A Driver never
-  // gets a username or password, even if the request includes them.
+  // All login-enabled roles, including Driver, receive sign-in credentials.
   let username = null;
   let password = null;
   if (LOGIN_ROLES.includes(role)) {
@@ -364,8 +363,8 @@ async function updateUserStatus(req, res, next) {
 // (System Administrator only; see app.js)
 //
 // An administrator sets a new password for someone else. Rules:
-//   - only accounts that can sign in have a password (Manager / System
-//     Administrator with a username); a Driver has none to reset
+//   - any login-enabled role can have its password reset; a legacy Driver
+//     without a username is assigned one in this same operation
 //   - the new password follows the same rules as when the account was created
 //   - every session the user has open is ended, so whoever knew the old
 //     password (or held a stolen session) is out immediately
@@ -401,11 +400,33 @@ async function resetUserPassword(req, res, next) {
     const target = found.rows[0];
     if (!target) throw new HttpError(404, 'User not found.');
 
-    if (!LOGIN_ROLES.includes(target.role) || !target.username) {
-      throw new HttpError(409, `${target.name} doesn't sign in, so there is no password to reset.`);
+    if (!LOGIN_ROLES.includes(target.role)) {
+      throw new HttpError(409, `${target.name} does not have a sign-in role.`);
     }
 
-    await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+    let nextUsername = target.username;
+    if (!nextUsername && target.role === ROLES.DRIVER) {
+      nextUsername = isString(req.body?.username) ? req.body.username.trim() : '';
+      if (!nextUsername || !USERNAME_RE.test(nextUsername)) {
+        const message = 'A valid username is required for this driver.';
+        throw new HttpError(400, message);
+      }
+      const duplicate = await client.query(
+        'SELECT 1 FROM users WHERE LOWER(username) = $1 AND id <> $2',
+        [nextUsername.toLowerCase(), id]
+      );
+      if (duplicate.rowCount > 0) {
+        throw new HttpError(409, 'That username is already taken.');
+      }
+      await client.query(
+        'UPDATE users SET username = $1, password_hash = $2 WHERE id = $3',
+        [nextUsername, passwordHash, id]
+      );
+    } else if (!nextUsername) {
+      throw new HttpError(409, `${target.name} has no username or sign-in credentials.`);
+    } else {
+      await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+    }
 
     // Sessions live in the "session" table (connect-pg-simple); the user's
     // id is inside the JSON. Same transaction as the update above, so a
@@ -423,6 +444,9 @@ async function resetUserPassword(req, res, next) {
     }
     if (err instanceof HttpError) {
       return res.status(err.status).json({ error: err.message });
+    }
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That username is already taken.' });
     }
     next(err);
   } finally {

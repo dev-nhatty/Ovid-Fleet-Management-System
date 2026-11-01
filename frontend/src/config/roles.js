@@ -20,4 +20,5 @@ export const ROLE_LABELS = {
 export const ROLE_HOME = {
   [ROLES.MANAGER]: '/manager/dashboard',
   [ROLES.ADMIN]: '/admin/dashboard',
+  [ROLES.DRIVER]: '/driver/today',
 };
